@@ -20,6 +20,10 @@ class ContactWindow(gtk.Window):
 		self.clipboard = gtk.Clipboard()
 		self.tooltips = gtk.Tooltips()
 
+		self.even_color = parent.contactlist.style_get_property('even-row-color')
+		self.odd_color = parent.contactlist.style_get_property('odd-row-color')
+		self.hand_cursor = gtk.gdk.Cursor(gtk.gdk.HAND1)
+
 		vbox1 = gtk.VBox(False, 6)
 		vbox1.set_border_width(6)
 		self.add(vbox1)
@@ -32,8 +36,7 @@ class ContactWindow(gtk.Window):
 		self.table.set_border_width(6)
 		scrolledwindow.add_with_viewport(self.table)
 		#scrolledwindow.get_child().set_shadow_type(gtk.SHADOW_NONE)
-		color = parent.contactlist.style_get_property('even-row-color')
-		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,color)
+		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.even_color)
 
 		hbox1 = gtk.HBox(False, 6)
 		vbox1.pack_end(hbox1, False)
@@ -58,32 +61,55 @@ class ContactWindow(gtk.Window):
 	#--------------
 	# help funtions
 	#--------------
-	def add_label(self, caption_text, text, url=False):
-		def copy_to_clipboard(button, text):
+	def add_label(self, caption_text, text, url=False, mail=False):
+		def copy_to_clipboard(widget, event, text):
 			self.clipboard.set_text(text)
+		def open_url(widget, event, text, mail=False):
+			pass
+		def hover_image(widget, event):
+			self.window.set_cursor(self.hand_cursor)
+		def unhover_image(widget, event):
+			self.window.set_cursor(None)
 
 		rows = self.table.get_property('n-rows')
+		# caption
 		caption = gtk.Label()
 		caption.set_markup("<b>%s</b>" % (caption_text))
 		caption.set_alignment(1,0)
-		self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, 0, 2)
-		if url:
-			labelbutton = gtk.LinkButton(text,text)
-			self.tooltips.set_tip(labelbutton,"Click to open!")
-		else:
-			labelbutton = gtk.Button(text)
-			#label.set_ellipsize(pango.ELLIPSIZE_END)
-			self.tooltips.set_tip(labelbutton,"Click to copy!")
-			labelbutton.connect('clicked',copy_to_clipboard,text)
-		labelbutton.set_alignment(0,0)
-		labelbutton.set_relief(gtk.RELIEF_NONE)
-		self.table.attach(labelbutton, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
-
-		return labelbutton
+		self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6)
+		# label
+		label = gtk.Label(text)
+		label.set_alignment(0,0)
+		label.set_selectable(True)
+		self.table.attach(label, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		# buttons
+		vbox = gtk.VBox(False, 2)
+		eventbox1 = gtk.EventBox()
+		eventbox1.modify_bg(gtk.STATE_NORMAL,self.even_color)
+		copyimage = gtk.image_new_from_stock(gtk.STOCK_COPY, gtk.ICON_SIZE_MENU)
+		eventbox1.add(copyimage)
+		eventbox1.connect('button_press_event', copy_to_clipboard, text)
+		eventbox1.connect('enter-notify-event', hover_image)
+		eventbox1.connect('leave-notify-event', unhover_image)
+		vbox.pack_start(eventbox1, False)
+		if url or mail:
+			eventbox2 = gtk.EventBox()
+			eventbox2.modify_bg(gtk.STATE_NORMAL,self.even_color)
+			if mail:
+				urlimage = gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU)
+			else:
+				urlimage = gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU)
+			eventbox2.add(urlimage)
+			eventbox2.connect('button_press_event', open_url, text, mail)
+			eventbox2.connect('enter-notify-event', hover_image)
+			eventbox2.connect('leave-notify-event', unhover_image)
+			vbox.pack_start(eventbox2, False)
+		self.table.attach(vbox, 2, 3, rows, rows+1, 0, 0, 0, 2)
+		return caption, label
 
 	def add_separator(self):
 		rows = self.table.get_property('n-rows')
-		self.table.attach(gtk.HSeparator(), 0, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
+		self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
 
 	#--------------
 	# create the widgets
@@ -95,7 +121,7 @@ class ContactWindow(gtk.Window):
 			photo.set_from_pixbuf(entry.pixbuf)
 		photo.set_alignment(1,0.5)
 		photo.set_flags('can-focus')
-		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 2, 2)
+		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 6, 2)
 
 		# big title
 		text = "<span size=\"x-large\"><b>%s</b></span>" % (entry.fullname)
@@ -112,7 +138,7 @@ class ContactWindow(gtk.Window):
 		big_title.set_alignment(0,0)
 		big_title.set_selectable(True)
 		#big_title.set_ellipsize(pango.ELLIPSIZE_END)
-		self.table.attach(big_title, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 4)
+		self.table.attach(big_title, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 
 		self.add_separator()
 
@@ -133,12 +159,12 @@ class ContactWindow(gtk.Window):
 			elif type == 'email':
 				if len(entry.email) > 0:
 					for i in range(len(entry.email)):
-						if entry.email[i] != None: self.add_label("email", entry.email[i], True)
+						if entry.email[i] != None: self.add_label("email", entry.email[i], True, True)
 					self.add_separator()
 			elif type == 'work_email':
 				if len(entry.work_email) > 0:
 					for i in range(len(entry.work_email)):
-						if entry.work_email[i] != None: self.add_label("work email", entry.work_email[i], True)
+						if entry.work_email[i] != None: self.add_label("work email", entry.work_email[i], True, True)
 					self.add_separator()
 			# address
 			elif 'address' in type:
@@ -155,15 +181,12 @@ class ContactWindow(gtk.Window):
 						text += street
 					if pobox:
 						text += "\nPostbox " + pobox
-						caption += "\n"
 					if zip and city:
 						text += "\n" + zip + " " + city
-						caption += "\n"
 					if city and state:
 						text += " (" + state + ")"
 					if country:
 						text += "\n" + country
-						caption += "\n"
 					self.add_label(caption, text)
 					self.add_separator()
 			# web
@@ -191,13 +214,6 @@ class ContactWindow(gtk.Window):
 				except: pass
 			elif type == 'note':
 				if len(entry.note_text) > 0:
-					rows = self.table.get_property('n-rows')
-					notecaption = gtk.Label()
-					notecaption.set_markup("<b>Note:</b>")
+					notecaption, notelabel = self.add_label("Note:", entry.note_text)
 					notecaption.set_alignment(0,0)
-					self.table.attach(notecaption, 0, 1, rows, rows+1, gtk.FILL, 0, 2)
-					noteentry = gtk.Entry()
-					noteentry.set_text(entry.note_text)
-					noteentry.set_has_frame(False)
-					noteentry.set_editable(False)
-					self.table.attach(noteentry, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 4)
+					notelabel.set_line_wrap(True)
