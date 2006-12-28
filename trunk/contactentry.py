@@ -38,7 +38,7 @@ class Entry:
 
 	def get_entries_from_dict(self):
 		"""Fill window entries from vcard dictionary"""
-		self.fullname = '' ; self.namelist = None
+		self.fullname = None ; self.namelist = None
 		self.title = '' ; self.org = ''
 		self.nick = '' ; self.note_text = ''
 		self.photo = None ; self.pixbuf = None
@@ -49,6 +49,21 @@ class Entry:
 		self.work_videoconference = '' ; self.videoconference = ''
 		self.im = len(im_types) * [None]
 		self.unknown_properties = {}
+
+		def fullname_from_contactname():
+			def get_names(list):
+				names = ''
+				for item in list: names += ' '+item
+				return names
+			try:
+				fn  = get_names(self.name_prefixes)
+				fn += get_names(self.name_given)
+				fn += get_names(self.name_additional)
+				fn += get_names(self.name_family)
+				fn += get_names(self.name_suffixes)
+				return self.escape(fn.lstrip())
+			except:
+				pass
 
 		def bday_from_dict(value):
 			"""return (yyyy/mm/dd) from card dictionary"""
@@ -180,6 +195,19 @@ class Entry:
 				self.rev = value
 			elif type not in ['BEGIN', 'VERSION', 'PRODID', 'END']:
 				self.unknown_properties[key] = value
+
+		if not self.fullname:
+			if self.namelist != None:
+						self.name_family = self.namelist[0].split()
+						if len(self.namelist) > 1:
+							self.name_given = self.namelist[1].split()
+							if len(self.namelist) > 2:
+								self.name_additional = self.namelist[2].split()
+								if len(self.namelist) > 3:
+									self.name_prefixes = self.namelist[3].split()
+									if len(self.namelist) > 4:
+										self.name_suffixes = self.namelist[4].split()
+						self.fullname = fullname_from_contactname()
 
 		del self.dict
 

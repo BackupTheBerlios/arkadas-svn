@@ -222,7 +222,6 @@ class ContactList:
 	# help funtions
 	#--------------
 	def load_contacts(self):
-
 		self.contact_dir = os.path.expanduser("~/Contacts")
 		if os.path.exists(self.contact_dir) == False:
 			os.mkdir(self.contact_dir)
