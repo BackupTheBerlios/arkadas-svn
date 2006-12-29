@@ -1,6 +1,7 @@
 import datetime
 import gtk, gobject, pango
-import contactentry
+# local
+import ContactEntry
 
 order = ['tel', 'email', 'web', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
 

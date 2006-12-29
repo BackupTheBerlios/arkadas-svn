@@ -1,9 +1,35 @@
 #!/usr/bin/env python
+"""Arkadas, an OS independent Contact-Manager using vCards written in python and GTK
+"""
+
+__author__ = "Paul Johnson"
+__email__ = "thrillerator@googlemail.com"
+__license__ = """
+Arkadas, an OS independent Contact-Manager using vCards written in python and GTK
+Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
+
+This file is part of Arkadas.
+
+Arkadas is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+Arkadas is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Arkadas; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+"""
 
 import sys, os, urllib, base64
 import gtk, gobject, pango
 import socket
-import contactentry, contactwindow
+# local
+import ContactEntry, ContactWindow
 
 # Test pygtk version
 if gtk.pygtk_version < (2, 6, 0):
@@ -167,7 +193,7 @@ class ContactList:
 		if self.contactlist.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactlist.get_selection().get_selected()
 			entry = model[iter][2]
-			entrywindow = contactwindow.ContactWindow(self, entry)
+			entrywindow = ContactWindow.ContactWindow(self, entry)
 			entrywindow.set_title(entry.fullname)
 			entrywindow.show_all()
 
@@ -229,7 +255,7 @@ class ContactList:
 		for file in os.listdir(self.contact_dir):
 			if file[-3:] != "vcf": continue
 
-			entry = contactentry.Entry()
+			entry = ContactEntry.Entry()
 			entry.filename = os.path.join(self.contact_dir,file)
 
 			if entry.get_dict_from_file(entry.filename):
