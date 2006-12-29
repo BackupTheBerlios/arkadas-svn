@@ -1,4 +1,20 @@
-import datetime
+#	This file is part of Arkadas.
+#
+#	Arkadas is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2 of the License, or
+#	(at your option) any later version.
+#
+#	Arkadas is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with Arkadas; if not, write to the Free Software
+#	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+import datetime, webbrowser
 import gtk, gobject, pango
 # local
 import ContactEntry
@@ -15,8 +31,6 @@ class ContactWindow(gtk.Window):
 
 		if entry.pixbuf != None:
 			self.set_icon(entry.pixbuf)
-		else:
-			self.set_icon_name("stock_contact")
 
 		self.clipboard = gtk.Clipboard()
 		self.tooltips = gtk.Tooltips()
@@ -66,7 +80,10 @@ class ContactWindow(gtk.Window):
 		def copy_to_clipboard(widget, event, text):
 			self.clipboard.set_text(text)
 		def open_url(widget, event, text, mail=False):
-			pass
+			if not mail:
+				webbrowser.open_new(text)
+			else:
+				webbrowser.open_new("mailto:" + text)
 		def hover_image(widget, event):
 			self.window.set_cursor(self.hand_cursor)
 		def unhover_image(widget, event):
@@ -77,14 +94,14 @@ class ContactWindow(gtk.Window):
 		caption = gtk.Label()
 		caption.set_markup("<b>%s</b>" % (caption_text))
 		caption.set_alignment(1,0)
-		self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6)
+		self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6, 2)
+		hbox = gtk.HBox(False, 2)
 		# label
 		label = gtk.Label(text)
 		label.set_alignment(0,0)
 		label.set_selectable(True)
-		self.table.attach(label, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		hbox.pack_start(label)
 		# buttons
-		vbox = gtk.VBox(False, 2)
 		eventbox1 = gtk.EventBox()
 		eventbox1.modify_bg(gtk.STATE_NORMAL,self.even_color)
 		copyimage = gtk.image_new_from_stock(gtk.STOCK_COPY, gtk.ICON_SIZE_MENU)
@@ -92,7 +109,7 @@ class ContactWindow(gtk.Window):
 		eventbox1.connect('button_press_event', copy_to_clipboard, text)
 		eventbox1.connect('enter-notify-event', hover_image)
 		eventbox1.connect('leave-notify-event', unhover_image)
-		vbox.pack_start(eventbox1, False)
+		hbox.pack_end(eventbox1, False)
 		if url or mail:
 			eventbox2 = gtk.EventBox()
 			eventbox2.modify_bg(gtk.STATE_NORMAL,self.even_color)
@@ -104,8 +121,8 @@ class ContactWindow(gtk.Window):
 			eventbox2.connect('button_press_event', open_url, text, mail)
 			eventbox2.connect('enter-notify-event', hover_image)
 			eventbox2.connect('leave-notify-event', unhover_image)
-			vbox.pack_start(eventbox2, False)
-		self.table.attach(vbox, 2, 3, rows, rows+1, 0, 0, 0, 2)
+			hbox.pack_start(eventbox2, False)
+		self.table.attach(hbox, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
 		return caption, label
 
 	def add_separator(self):
@@ -122,7 +139,7 @@ class ContactWindow(gtk.Window):
 			photo.set_from_pixbuf(entry.pixbuf)
 		photo.set_alignment(1,0.5)
 		photo.set_flags('can-focus')
-		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 6, 2)
+		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 6, 4)
 
 		# big title
 		text = "<span size=\"x-large\"><b>%s</b></span>" % (entry.fullname)

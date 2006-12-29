@@ -88,7 +88,8 @@ class ContactList:
 		self.window.set_title('Contactlist')
 		self.window.set_resizable(True)
 		self.window.set_default_size(300,400)
-		self.window.set_icon_name("stock_contact")
+
+		gtk.window_set_default_icon_name("stock_contact")
 
 		# uimanager
 		self.uimanager = gtk.UIManager()
