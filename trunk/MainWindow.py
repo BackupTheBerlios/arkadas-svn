@@ -144,7 +144,8 @@ class ContactList:
 		self.contactlist = gtk.TreeView(self.contactdata)
 		self.contactlist.set_headers_visible(False)
 		self.contactlist.set_rules_hint(True)
-		self.contactlist.set_search_column(0)
+		self.contactlist.set_enable_search(True)
+		self.contactlist.set_search_equal_func(self.search_contacts)
 		scrolledwindow1.add(self.contactlist)
 
 		# contactlist cellrenderers
@@ -284,16 +285,20 @@ class ContactList:
 				if entry.photo != None:
 					gobject.idle_add(self.get_image_from_entry, entry)
 
-	def sort_contacts(self, model, iter1, iter2, user_data):
+	def sort_contacts(self, model, iter1, iter2, data):
 		entry1 = model[iter1][2]
 		entry2 = model[iter2][2]
 		try:
-			ret = cmp(entry1.fullname.split(' ')[-1],entry2.fullname.split(' ')[-1])
-			if ret == 0:
-				ret = cmp(entry1.fullname.split(' ')[0],entry2.fullname.split(' ')[0])
-			return ret
+			name1 = ' '.join(entry1.sort_strings)
+			name2 = ' '.join(entry2.sort_strings)
+			return cmp(name1.strip(), name2.strip())
 		except:
 			return 0
+	def search_contacts(self, model, column, key, iter):
+		entry = model[iter][2]
+		if entry.fullname.lower().find(key.lower()) > -1:
+			return False
+		return True
 
 	def get_image_from_entry(self, entry):
 		if entry.photo_type == "URI":
