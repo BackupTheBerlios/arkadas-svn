@@ -127,7 +127,9 @@ class ContactWindow(gtk.Window):
 
 	def add_separator(self):
 		rows = self.table.get_property('n-rows')
-		self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
+		seplabel = gtk.Label()
+		seplabel.set_size_request(-1,5)
+		self.table.attach(seplabel, 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0)
 
 	#--------------
 	# create the widgets
@@ -166,12 +168,24 @@ class ContactWindow(gtk.Window):
 			if type == 'tel':
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
-						if entry.tel[i] != None: self.add_label("home", entry.tel[i][0])
+						if entry.tel[i] != None:
+							caption = "home"
+							if entry.tel[i][1]== 'FAX':
+								caption += " fax"
+							if entry.tel[i][1]== 'CELL':
+								caption = "mobile"
+							self.add_label(caption, entry.tel[i][0])
 					self.add_separator()
 			elif type == 'work_tel':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
-						if entry.work_tel[i] != None: self.add_label("work", entry.work_tel[i][0])
+						if entry.work_tel[i] != None:
+							caption = "work"
+							if entry.work_tel[i][1]== 'FAX':
+								caption += " fax"
+							if entry.work_tel[i][1]== 'CELL':
+								caption += " mobile"
+							self.add_label(caption, entry.work_tel[i][0])
 					self.add_separator()
 			# emails
 			elif type == 'email':
@@ -232,6 +246,8 @@ class ContactWindow(gtk.Window):
 				except: pass
 			elif type == 'note':
 				if len(entry.note_text) > 0:
+					rows = self.table.get_property('n-rows')
+					self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
 					notecaption, notelabel = self.add_label("Note:", entry.note_text)
 					notecaption.set_alignment(0,0)
 					notelabel.set_line_wrap(True)
