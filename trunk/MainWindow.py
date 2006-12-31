@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-"""Arkadas, an OS independent Contact-Manager using vCards written in python and GTK
+"""Arkadas, an OS independent Contact-Manager using vCards, written in python and GTK
 """
 
 __author__ = "Paul Johnson"
 __email__ = "thrillerator@googlemail.com"
-__license__ = """
-Arkadas, an OS independent Contact-Manager using vCards written in python and GTK
-Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
+__version__ = "0.1"
+__license__ = """Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
 
 This file is part of Arkadas.
 
@@ -25,9 +24,8 @@ along with Arkadas; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import sys, os, urllib, base64
+import sys, os, urllib, base64, socket, webbrowser
 import gtk, gobject, pango
-import socket
 # local
 import ContactEntry, ContactWindow
 
@@ -50,11 +48,12 @@ class ContactList:
 		socket.setdefaulttimeout(2)
 
 		actions = (
-			('NewContact', gtk.STOCK_NEW, None, None, "Create a new contact", None),
+			('NewContact', None, "_New", None, "Create a new contact", None),
 			('ShowContact', gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
 			('EditContact', gtk.STOCK_EDIT, None, None, "Edit the selected contact", None),
 			('DeleteContact', gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
 			('Preferences', gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
+			('About', gtk.STOCK_ABOUT, None, None, "About the application", self.about),
 			('CopyName', gtk.STOCK_COPY, "_Copy Fullname", None, None, None),
 			('CopyEmail', None, "Copy E_mail", None, None, None),
 			('CopyNumber', None, "Copy N_umber", None, None, None),
@@ -62,7 +61,7 @@ class ContactList:
 
 		uiDescription = """
 			<ui>
-			 <toolbar name="ContactsToolbar">
+			 <toolbar name="Toolbar">
 			  <toolitem action="NewContact"/>
 			  <toolitem action="ShowContact"/>
 			  <toolitem action="EditContact"/>
@@ -71,14 +70,17 @@ class ContactList:
 			  <toolitem action="Preferences"/>
 			 </toolbar>
 			 <popup name="Itemmenu">
+			  <menuitem action="NewContact"/>
 			  <menuitem action="ShowContact"/>
 			  <menuitem action="EditContact"/>
+			  <menuitem action="DeleteContact"/>
 			  <separator name="SM1"/>
 			  <menuitem action="CopyName"/>
 			  <menuitem action="CopyEmail"/>
 			  <menuitem action="CopyNumber"/>
 			  <separator name="SM2"/>
-			  <menuitem action="DeleteContact"/>
+			  <menuitem action="Preferences"/>
+			  <menuitem action="About"/>
 			 </popup>
 			</ui>
 			"""
@@ -89,7 +91,8 @@ class ContactList:
 		self.window.set_resizable(True)
 		self.window.set_default_size(300,400)
 
-		gtk.window_set_default_icon_name("stock_contact")
+		self.window.set_icon_name('address-book')
+		gtk.window_set_default_icon_name('stock_contact')
 
 		# uimanager
 		self.uimanager = gtk.UIManager()
@@ -106,8 +109,12 @@ class ContactList:
 		self.window.add(main_vbox)
 
 		# toolbar
-		self.toolbar = self.uimanager.get_widget('/ContactsToolbar')
+		self.toolbar = self.uimanager.get_widget('/Toolbar')
 		main_vbox.pack_start(self.toolbar,False,False)
+
+		self.uimanager.get_widget('/Toolbar/NewContact').set_icon_name("contact-new")
+		image = self.uimanager.get_widget('/Itemmenu/NewContact').get_children()[1]
+		image.set_from_icon_name("contact-new", gtk.ICON_SIZE_MENU)
 
 		self.itemmenu = self.uimanager.get_widget('/Itemmenu')
 
@@ -178,8 +185,9 @@ class ContactList:
 		# events
 		self.contactlist.connect('row_activated', self.contactlist_click)
 		self.contactlist.connect('button_press_event', self.contactlist_press)
-		self.contactlist.connect('button_release_event', self.contactlist_release)
 		self.contactlist.connect('popup_menu', self.contactlist_popup_menu)
+		self.contactlist.get_selection().connect('changed', self.contactlist_change)
+		self.contactlist_change(self.contactlist.get_selection())
 		self.window.connect("delete_event", self.delete_event)
 		self.window.connect("destroy", self.destroy)
 
@@ -204,7 +212,7 @@ class ContactList:
 			(model, iter) = self.contactlist.get_selection().get_selected()
 			entry = model[iter][2]
 			text = "<big><b>Remove Contact</b></big>\n\n"
-			text += "You are about to remove <b>%s</b> from your buddy list. Do you want to continue?" % (entry.fullname)
+			text += "You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?" % (entry.fullname)
 			dialog = gtk.Dialog("Arkadas", self.window,gtk.DIALOG_MODAL)
 			dialog.set_size_request(420, -1)
 			dialog.set_resizable(False)
@@ -234,17 +242,65 @@ class ContactList:
 		dialog.destroy()
 
 	def contactlist_click(self, treeview, path, column):
-		self.showbutton_click(self.uimanager.get_widget('/ContactsToolbar/ShowButton'))
+		self.showbutton_click(self.uimanager.get_widget('/Toolbar/ShowContact'))
 
 	def contactlist_press(self, widget, event):
 		if event.button == 3:
 			self.itemmenu.popup(None, None, None, event.button, event.time)
 
-	def contactlist_release(self, widget, event):
-		return
-
 	def contactlist_popup_menu(self, widget):
 		self.itemmenu.popup(None, None, None, 3, 0)
+
+	def contactlist_change(self, selection):
+		if selection.count_selected_rows() > 0:
+			self.uimanager.get_widget('/Toolbar/ShowContact').set_sensitive(True)
+			self.uimanager.get_widget('/Itemmenu/ShowContact').show()
+			self.uimanager.get_widget('/Toolbar/EditContact').set_sensitive(True)
+			self.uimanager.get_widget('/Itemmenu/EditContact').show()
+			self.uimanager.get_widget('/Toolbar/DeleteContact').set_sensitive(True)
+			self.uimanager.get_widget('/Itemmenu/DeleteContact').show()
+			self.uimanager.get_widget('/Itemmenu/CopyName').show()
+			self.uimanager.get_widget('/Itemmenu/CopyEmail').show()
+			self.uimanager.get_widget('/Itemmenu/CopyNumber').show()
+		else:
+			self.uimanager.get_widget('/Toolbar/ShowContact').set_sensitive(False)
+			self.uimanager.get_widget('/Itemmenu/ShowContact').hide()
+			self.uimanager.get_widget('/Toolbar/EditContact').set_sensitive(False)
+			self.uimanager.get_widget('/Itemmenu/EditContact').hide()
+			self.uimanager.get_widget('/Toolbar/DeleteContact').set_sensitive(False)
+			self.uimanager.get_widget('/Itemmenu/DeleteContact').hide()
+			self.uimanager.get_widget('/Itemmenu/CopyName').hide()
+			self.uimanager.get_widget('/Itemmenu/CopyEmail').hide()
+			self.uimanager.get_widget('/Itemmenu/CopyNumber').hide()
+
+	def about(self, widget):
+		def close_about(event, data=None):
+			aboutdialog.hide()
+			return True
+
+		def show_website(dialog, blah, link):
+			webbrowser.open_new(link)
+
+		aboutdialog = gtk.AboutDialog()
+		try:
+			aboutdialog.set_transient_for(self.window)
+			aboutdialog.set_modal(True)
+		except:
+			pass
+		aboutdialog.set_name('Arkadas')
+		aboutdialog.set_version(__version__)
+		aboutdialog.set_comments('An OS independent Contact-Manager using vCards, written in python and GTK.')
+		aboutdialog.set_license(__license__)
+		aboutdialog.set_authors(['Paul Johnson <thrillerator@googlemail.com>',
+									'Erdem Cakir <deejayrdm@gmail.com>'])
+		#aboutdialog.set_translator_credits('fr - Floreal M <florealm@gmail.com>\npl - Tomasz Dominikowski <dominikowski@gmail.com>\nde - Paul Johnson <thrillerator@googlemail.com>')
+		gtk.about_dialog_set_url_hook(show_website, "http://arkadas.berlios.de")
+		aboutdialog.set_website_label("http://arkadas.berlios.de")
+		large_icon = gtk.gdk.pixbuf_new_from_file('arkadas.png')
+		aboutdialog.set_logo(large_icon)
+		aboutdialog.connect('response', close_about)
+		aboutdialog.connect('delete_event', close_about)
+		aboutdialog.show_all()
 
 	#--------------
 	# help funtions
@@ -275,9 +331,9 @@ class ContactList:
 					markup += markup_small % ("email","<u>" + entry.work_email[0] + "</u>")
 
 				if len(entry.tel) > 0:
-					markup += markup_small % ("phone",entry.tel[0])
+					markup += markup_small % ("phone",entry.tel[0][0])
 				elif len(entry.work_tel) > 0:
-					markup += markup_small % ("phone",entry.work_tel[0])
+					markup += markup_small % ("phone",entry.work_tel[0][0])
 
 				iter = self.contactdata.append([markup,None,entry])
 				entry.iter = iter
@@ -286,17 +342,18 @@ class ContactList:
 					gobject.idle_add(self.get_image_from_entry, entry)
 
 	def sort_contacts(self, model, iter1, iter2, data):
-		entry1 = model[iter1][2]
-		entry2 = model[iter2][2]
-		try:
-			name1 = ' '.join(entry1.sort_strings)
-			name2 = ' '.join(entry2.sort_strings)
-			return cmp(name1.strip(), name2.strip())
-		except:
-			return 0
+		entry1 = model[iter1][2] ; entry2 = model[iter2][2]
+		f1 = '' ; f2 = ''
+		if entry1 and entry2:
+			for i in (0,4,3,1,2):
+				f1 += entry1.name[i].strip() + ' '
+				f2 += entry2.name[i].strip() + ' '
+			return cmp(f1.strip().replace('  ',' '),f2.strip().replace('  ',' '))
+		return 0
+
 	def search_contacts(self, model, column, key, iter):
 		entry = model[iter][2]
-		if entry.fullname.lower().find(key.lower()) > -1:
+		if key.lower() in entry.fullname.lower():
 			return False
 		return True
 

@@ -54,7 +54,8 @@ class Entry:
 
 	def get_entries_from_dict(self):
 		"""Fill window entries from vcard dictionary"""
-		self.fullname = '' ; self.namelist = None
+		namelist = None
+		self.fullname = '' ; self.name = 5 * ['']
 		self.title = '' ; self.org = ''
 		self.nick = '' ; self.note_text = ''
 		self.photo = None ; self.pixbuf = None
@@ -141,17 +142,25 @@ class Entry:
 				else:
 					print "ADR malformed"
 			elif type == "TEL":
+				for i in tel_types:
+					if i in valuelist: history = i ; break
 				if "WORK" in valuelist:
-					self.work_tel.append(value)
+					if "PREF" in valuelist:
+						self.work_tel.insert(0,[value,history])
+					else:
+						self.work_tel.append([value,history])
 				else:
-					self.tel.append(value)
+					if "PREF" in valuelist:
+						self.tel.insert(0,[value,history])
+					else:
+						self.tel.append([value,history])
 			elif type == "ORG":
 				self.org = self.unescape(value)
 			elif type == "CATEGORIES":
 				self.categories = value
 			elif type == "N":
 				# family, given, additional, prefixes, suffixes
-				self.namelist = value.split(';')
+				namelist = value.split(';')
 			elif type == "FN":
 				self.fullname = self.unescape(value)
 			elif type == "NICKNAME":
@@ -162,20 +171,20 @@ class Entry:
 				self.role = self.unescape(value)
 			elif type == "NOTE":
 				self.note_text = self.unescape(value)
-			#elif type == "KEY":
-			#	if iscommand('gpg'):
-			#		try:
-			#			import gpg
-			#			k = gpg.Key()
-			#			k.value = base64.decodestring(value)
-			#			gnupg = gpg.MyGnuPG()
-			#			(k.keyID, k.UserID) = gnupg.get_ID(k.value)
-			#			self.key = k
-			#			self.add_keybutton()
-			#		except:
-			#			pass
-			#	else:
-			#		self.unknown_properties[key] = value
+			elif type == "KEY":
+				from webbrowser import _iscommand as iscommand
+				if iscommand('gpg'):
+					try:
+						import base64, gpg
+						k = gpg.Key()
+						k.value = base64.decodestring(value)
+						gnupg = gpg.MyGnuPG()
+						(k.keyID, k.UserID) = gnupg.get_ID(k.value)
+						self.key = k
+					except:
+						pass
+				else:
+					self.unknown_properties[key] = value
 			elif type == "PHOTO":
 				self.photo = value
 				if "VALUE=URI" in valuelist:
@@ -201,26 +210,15 @@ class Entry:
 			elif type not in ['BEGIN', 'VERSION', 'PRODID', 'END']:
 				self.unknown_properties[key] = value
 
-		firstname = ' '
-		lastname = ' '
-
-		if self.namelist != None:
-			lastname = ' '.join(self.namelist[0].split())
-			if len(self.namelist) > 1:
-				firstname = ' '.join(self.namelist[1].split())
-				if len(self.namelist) > 2:
-					firstname += ' ' + ' '.join(self.namelist[2].split())
-					if len(self.namelist) > 3:
-						firstname = ' '.join(self.namelist[3].split()) + ' ' + firstname
-						if len(self.namelist) > 4:
-							lastname += ' ' + ' '.join(self.namelist[4].split())
-
-		fullname = firstname.strip() + " " + lastname.strip()
+		if namelist != None:
+			for i in range(len(namelist)):
+				self.name[i] = str(namelist[i])
 
 		if not len(self.fullname) > 0:
-			self.fullname = fullname.strip()
-
-		self.sort_strings = [lastname.strip(), firstname.strip()]
+			f = ''
+			for i in (3,1,2,0,4):
+				f += self.name[i].strip() + ' '
+			self.fullname = f.strip().replace('  ',' ')
 
 		del self.dict
 

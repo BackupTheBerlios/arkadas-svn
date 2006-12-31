@@ -166,12 +166,12 @@ class ContactWindow(gtk.Window):
 			if type == 'tel':
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
-						if entry.tel[i] != None: self.add_label("home", entry.tel[i])
+						if entry.tel[i] != None: self.add_label("home", entry.tel[i][0])
 					self.add_separator()
 			elif type == 'work_tel':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
-						if entry.work_tel[i] != None: self.add_label("work", entry.work_tel[i])
+						if entry.work_tel[i] != None: self.add_label("work", entry.work_tel[i][0])
 					self.add_separator()
 			# emails
 			elif type == 'email':
