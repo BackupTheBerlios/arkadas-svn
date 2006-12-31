@@ -48,7 +48,7 @@ class ContactList:
 		socket.setdefaulttimeout(2)
 
 		actions = (
-			('NewContact', None, "_New", None, "Create a new contact", None),
+			('NewContact', gtk.STOCK_NEW, None, None, "Create a new contact", None),
 			('ShowContact', gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
 			('EditContact', gtk.STOCK_EDIT, None, None, "Edit the selected contact", None),
 			('DeleteContact', gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
@@ -112,10 +112,6 @@ class ContactList:
 		self.toolbar = self.uimanager.get_widget('/Toolbar')
 		main_vbox.pack_start(self.toolbar,False,False)
 
-		self.uimanager.get_widget('/Toolbar/NewContact').set_icon_name("contact-new")
-		image = self.uimanager.get_widget('/Itemmenu/NewContact').get_children()[1]
-		image.set_from_icon_name("contact-new", gtk.ICON_SIZE_MENU)
-
 		self.itemmenu = self.uimanager.get_widget('/Itemmenu')
 
 		contacts_vbox = gtk.VBox(False,6)
@@ -153,6 +149,7 @@ class ContactList:
 		self.contactlist.set_rules_hint(True)
 		self.contactlist.set_enable_search(True)
 		self.contactlist.set_search_equal_func(self.search_contacts)
+
 		scrolledwindow1.add(self.contactlist)
 
 		# contactlist cellrenderers
@@ -167,21 +164,6 @@ class ContactList:
 		column.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
 		self.contactlist.append_column(column)
 
-		# searchbox
-		search_hbox = gtk.HBox()
-		contacts_vbox.pack_end(search_hbox,False,True,0)
-
-		self.search_label = gtk.Label()
-		self.search_label.set_text_with_mnemonic("_Search:")
-		self.search_label.set_padding(6,0)
-		search_hbox.pack_start(self.search_label,False,True,0)
-
-		self.search_entry = gtk.Entry()
-		self.search_label.set_mnemonic_widget(self.search_entry)
-		self.search_entry.set_activates_default(True)
-		self.contactlist.set_search_entry(self.search_entry)
-		search_hbox.pack_start(self.search_entry)
-
 		# events
 		self.contactlist.connect('row_activated', self.contactlist_click)
 		self.contactlist.connect('button_press_event', self.contactlist_press)
@@ -195,6 +177,7 @@ class ContactList:
 		self.window.show_all()
 
 		self.load_contacts()
+		self.contactlist.grab_focus()
 
 	#--------------
 	# event funtions
