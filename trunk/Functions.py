@@ -1,5 +1,24 @@
 import gtk, subprocess
 
+class ImageButton(gtk.EventBox):
+	def __init__(self, image, color = None):
+		def hover_image(widget, event):
+			self.get_root_window().set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
+		def unhover_image(widget, event):
+			self.get_root_window().set_cursor(None)
+
+		gtk.EventBox.__init__(self)
+		if color:
+			self.modify_bg(gtk.STATE_NORMAL,color)
+		self.Image = image
+		self.add(self.Image)
+		self.connect('enter-notify-event', hover_image)
+		self.connect('leave-notify-event', unhover_image)
+		self.Image.show()
+		self.show()
+		self.set_no_show_all(True)
+		del image
+
 def get_pixbuf_of_size(pixbuf, size):
 	image_width = pixbuf.get_width()
 	image_height = pixbuf.get_height()

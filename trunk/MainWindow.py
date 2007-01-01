@@ -322,12 +322,22 @@ class ContactList:
 				if len(entry.email) > 0:
 					markup += markup_small % ("email","<u>" + entry.email[0] + "</u>")
 				elif len(entry.work_email) > 0:
-					markup += markup_small % ("email","<u>" + entry.work_email[0] + "</u>")
+					markup += markup_small % ("work email","<u>" + entry.work_email[0] + "</u>")
 
 				if len(entry.tel) > 0:
-					markup += markup_small % ("phone",entry.tel[0][0])
+					caption = "home"
+					if entry.tel[0][1]== 'FAX':
+						caption += " fax"
+					elif entry.tel[0][1]== 'CELL':
+						caption = "mobile"
+					markup += markup_small % (caption,entry.tel[0][0])
 				elif len(entry.work_tel) > 0:
-					markup += markup_small % ("phone",entry.work_tel[0][0])
+					caption = "work"
+					if entry.work_tel[0][1]== 'FAX':
+						caption += " fax"
+					elif entry.work_tel[0][1]== 'CELL':
+						caption += " mobile"
+					markup += markup_small % (caption,entry.work_tel[0][0])
 
 				iter = self.contactdata.append([markup,None,entry])
 				entry.iter = iter

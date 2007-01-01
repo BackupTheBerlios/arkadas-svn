@@ -22,6 +22,8 @@ import ContactEntry
 
 order = ['tel', 'email', 'web', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
 
+edit_mode = False
+
 class ContactWindow(gtk.Window):
 
 	def __init__(self, parent, entry):
@@ -33,12 +35,10 @@ class ContactWindow(gtk.Window):
 		if entry.pixbuf != None:
 			self.set_icon(get_pixbuf_of_size(entry.pixbuf,128))
 
-		self.clipboard = gtk.Clipboard()
 		self.tooltips = gtk.Tooltips()
 
 		self.even_color = parent.contactlist.style_get_property('even-row-color')
 		self.odd_color = parent.contactlist.style_get_property('odd-row-color')
-		self.hand_cursor = gtk.gdk.Cursor(gtk.gdk.HAND2)
 
 		vbox1 = gtk.VBox(False, 6)
 		vbox1.set_border_width(6)
@@ -78,17 +78,11 @@ class ContactWindow(gtk.Window):
 	# help funtions
 	#--------------
 	def add_label(self, caption_text, text, url=False, mail=False):
-		def copy_to_clipboard(widget, event, text):
-			self.clipboard.set_text(text)
 		def open_url(widget, event, text, mail=False):
 			if not mail:
 				browser_load(text,self)
 			else:
 				browser_load("mailto:" + text, self)
-		def hover_image(widget, event):
-			self.window.set_cursor(self.hand_cursor)
-		def unhover_image(widget, event):
-			self.window.set_cursor(None)
 
 		rows = self.table.get_property('n-rows')
 		# caption
@@ -101,31 +95,30 @@ class ContactWindow(gtk.Window):
 		label = gtk.Label(text)
 		label.set_alignment(0,0)
 		label.set_selectable(True)
+		label.set_no_show_all(True)
 		hbox.pack_start(label)
 		# buttons
-		eventbox1 = gtk.EventBox()
-		eventbox1.modify_bg(gtk.STATE_NORMAL,self.even_color)
-		self.tooltips.set_tip(eventbox1,"Click to copy!")
-		copyimage = gtk.image_new_from_stock(gtk.STOCK_COPY, gtk.ICON_SIZE_MENU)
-		eventbox1.add(copyimage)
-		eventbox1.connect('button_press_event', copy_to_clipboard, text)
-		eventbox1.connect('enter-notify-event', hover_image)
-		eventbox1.connect('leave-notify-event', unhover_image)
-		hbox.pack_end(eventbox1, False)
 		if url or mail:
-			eventbox2 = gtk.EventBox()
-			eventbox2.modify_bg(gtk.STATE_NORMAL,self.even_color)
-			self.tooltips.set_tip(eventbox2,"Click to open!")
 			if mail:
-				urlimage = gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU)
+				urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), self.even_color)
 			else:
-				urlimage = gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU)
-			eventbox2.add(urlimage)
-			eventbox2.connect('button_press_event', open_url, text, mail)
-			eventbox2.connect('enter-notify-event', hover_image)
-			eventbox2.connect('leave-notify-event', unhover_image)
-			hbox.pack_start(eventbox2, False)
+				urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), self.even_color)
+			self.tooltips.set_tip(urlbutton,"Click to open")
+			urlbutton.connect('button_press_event', open_url, text, mail)
+			hbox.pack_end(urlbutton, False)
+		# entry (edit-mode)
+		labelentry = gtk.Entry()
+		labelentry.set_text(text)
+		labelentry.set_has_frame(False)
+		labelentry.set_no_show_all(True)
+		hbox.pack_end(labelentry)
 		self.table.attach(hbox, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
+		if edit_mode:
+			label.hide()
+			labelentry.show()
+		else:
+			label.show()
+			labelentry.hide()
 		return caption, label
 
 	def add_separator(self):
@@ -139,12 +132,26 @@ class ContactWindow(gtk.Window):
 	#--------------
 	def make_widgets(self, entry):
 		# contact photo
+		photohbox = gtk.HBox(False,2)
 		photo = gtk.Image()
-		if entry.pixbuf != None:
+		if entry.pixbuf:
 			photo.set_from_pixbuf(get_pixbuf_of_size(entry.pixbuf,50))
+			hasphoto = True
+		else:
+			photo.set_from_icon_name('stock_person',gtk.ICON_SIZE_DIALOG)
+			hasphoto = False
 		photo.set_alignment(1,0.5)
 		photo.set_flags('can-focus')
-		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 6, 4)
+		photohbox.pack_end(photo,False)
+		# contact photo (edit-mode)
+		photovbox = gtk.VBox()
+		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.even_color)
+		self.tooltips.set_tip(photoremove,"Click to remove image")
+		#photoremove.connect('button_press_event', copy_to_clipboard, text)
+		photovbox.pack_start(photoremove, False)
+		photohbox.pack_start(photovbox, False)
+		if not edit_mode: photoremove.hide()
+		self.table.attach(photohbox, 0, 1, 0, 1, gtk.FILL, 0, 6, 4)
 
 		# big title
 		text = "<span size=\"x-large\"><b>%s</b></span>" % (entry.fullname)
@@ -175,7 +182,7 @@ class ContactWindow(gtk.Window):
 							caption = "home"
 							if entry.tel[i][1]== 'FAX':
 								caption += " fax"
-							if entry.tel[i][1]== 'CELL':
+							elif entry.tel[i][1]== 'CELL':
 								caption = "mobile"
 							self.add_label(caption, entry.tel[i][0])
 					self.add_separator()
@@ -186,7 +193,7 @@ class ContactWindow(gtk.Window):
 							caption = "work"
 							if entry.work_tel[i][1]== 'FAX':
 								caption += " fax"
-							if entry.work_tel[i][1]== 'CELL':
+							elif entry.work_tel[i][1]== 'CELL':
 								caption += " mobile"
 							self.add_label(caption, entry.work_tel[i][0])
 					self.add_separator()
