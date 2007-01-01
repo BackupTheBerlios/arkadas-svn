@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Arkadas, an OS independent Contact-Manager using vCards, written in python and GTK
+"""Arkadas, a lightweight GTK+ Contact-Manager based on vCards
 """
 
 __author__ = "Paul Johnson"

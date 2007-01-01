@@ -283,7 +283,7 @@ class ContactList:
 			pass
 		aboutdialog.set_name('Arkadas')
 		aboutdialog.set_version(__version__)
-		aboutdialog.set_comments('An OS independent Contact-Manager using vCards, written in python and GTK.')
+		aboutdialog.set_comments('A lightweight GTK+ Contact-Manager based on vCards.')
 		aboutdialog.set_license(__license__)
 		aboutdialog.set_authors(['Paul Johnson <thrillerator@googlemail.com>',
 									'Erdem Cakir <deejayrdm@gmail.com>'])
