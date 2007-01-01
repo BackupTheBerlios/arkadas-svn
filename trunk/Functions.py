@@ -3,9 +3,9 @@ import gtk, subprocess
 class ImageButton(gtk.EventBox):
 	def __init__(self, image, color = None):
 		def hover_image(widget, event):
-			self.get_root_window().set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
+			self.get_toplevel().window.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
 		def unhover_image(widget, event):
-			self.get_root_window().set_cursor(None)
+			self.get_toplevel().window.set_cursor(None)
 
 		gtk.EventBox.__init__(self)
 		if color:
