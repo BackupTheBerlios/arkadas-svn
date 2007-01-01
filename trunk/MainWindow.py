@@ -1,9 +1,19 @@
-#!/usr/bin/env python
-"""Arkadas, an OS independent Contact-Manager using vCards, written in python and GTK
-"""
+#	This file is part of Arkadas.
+#
+#	Arkadas is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2 of the License, or
+#	(at your option) any later version.
+#
+#	Arkadas is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with Arkadas; if not, write to the Free Software
+#	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-__author__ = "Paul Johnson"
-__email__ = "thrillerator@googlemail.com"
 __version__ = "0.1"
 __license__ = """Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
 
@@ -24,9 +34,10 @@ along with Arkadas; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import sys, os, urllib, base64, socket, webbrowser
+import sys, os, urllib, base64, socket
 import gtk, gobject, pango
 # local
+from Functions import *
 import ContactEntry, ContactWindow
 
 # Test pygtk version
@@ -354,40 +365,18 @@ class ContactList:
 			loader = gtk.gdk.PixbufLoader()
 			loader.write(data)
 			loader.close()
-			pixbuf = loader.get_pixbuf()
+			entry.pixbuf = loader.get_pixbuf()
 		except:
 			pass
-		entry.pixbuf = self.get_pixbuf_of_size(pixbuf,50)
-		self.contactdata[entry.iter][1] = self.get_pixbuf_of_size(pixbuf,50)
+		self.contactdata[entry.iter][1] = get_pixbuf_of_size(entry.pixbuf,50)
 		return False
 
-	def get_pixbuf_of_size(self, pixbuf, size):
-		image_width = pixbuf.get_width()
-		image_height = pixbuf.get_height()
-		if image_width-size > image_height-size:
-			image_height = int(size/float(image_width)*image_height)
-			image_width = size
-		else:
-			image_width = int(size/float(image_height)*image_width)
-			image_height = size
-		crop_pixbuf = pixbuf.scale_simple(image_width, image_height, gtk.gdk.INTERP_HYPER)
-		return crop_pixbuf
-
-	def get_pixbuf_of_size_from_file(self, filename, size):
-		try:
-			pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
-			pixbuf = self.get_pixbuf_of_size(pixbuf, size)
-		except:
-			pass
-		return pixbuf
-
 	def main(self):
-		# All PyGTK applications must have a gtk.main(). Control ends here
-		# and waits for an event to occur (like a key press or mouse event).
 		gtk.main()
 
-# If the program is run directly or passed as an argument to the python
-# interpreter then create a HelloWorld instance and show it
 if __name__ == "__main__":
+
 	contacts = ContactList()
+	gtk.gdk.threads_enter()
 	contacts.main()
+	gtk.gdk.threads_leave()

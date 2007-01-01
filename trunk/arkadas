@@ -1,3 +1,17 @@
-#!/bin/sh
+#!/usr/bin/env python
+"""Arkadas, an OS independent Contact-Manager using vCards, written in python and GTK
+"""
 
-python MainWindow.py
+__author__ = "Paul Johnson"
+__email__ = "thrillerator@googlemail.com"
+
+import sys
+# local
+import MainWindow
+
+if __name__ == "__main__":
+	app = MainWindow.ContactList()
+	try:
+		app.main()
+	except KeyboardInterrupt:
+		pass

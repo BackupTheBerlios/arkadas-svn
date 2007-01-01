@@ -14,9 +14,10 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-import datetime, webbrowser
+import datetime
 import gtk, gobject, pango
 # local
+from Functions import *
 import ContactEntry
 
 order = ['tel', 'email', 'web', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
@@ -30,14 +31,14 @@ class ContactWindow(gtk.Window):
 		self.set_default_size(-1,400)
 
 		if entry.pixbuf != None:
-			self.set_icon(entry.pixbuf)
+			self.set_icon(get_pixbuf_of_size(entry.pixbuf,128))
 
 		self.clipboard = gtk.Clipboard()
 		self.tooltips = gtk.Tooltips()
 
 		self.even_color = parent.contactlist.style_get_property('even-row-color')
 		self.odd_color = parent.contactlist.style_get_property('odd-row-color')
-		self.hand_cursor = gtk.gdk.Cursor(gtk.gdk.HAND1)
+		self.hand_cursor = gtk.gdk.Cursor(gtk.gdk.HAND2)
 
 		vbox1 = gtk.VBox(False, 6)
 		vbox1.set_border_width(6)
@@ -81,9 +82,9 @@ class ContactWindow(gtk.Window):
 			self.clipboard.set_text(text)
 		def open_url(widget, event, text, mail=False):
 			if not mail:
-				webbrowser.open_new(text)
+				browser_load(text,self)
 			else:
-				webbrowser.open_new("mailto:" + text)
+				browser_load("mailto:" + text, self)
 		def hover_image(widget, event):
 			self.window.set_cursor(self.hand_cursor)
 		def unhover_image(widget, event):
@@ -104,6 +105,7 @@ class ContactWindow(gtk.Window):
 		# buttons
 		eventbox1 = gtk.EventBox()
 		eventbox1.modify_bg(gtk.STATE_NORMAL,self.even_color)
+		self.tooltips.set_tip(eventbox1,"Click to copy!")
 		copyimage = gtk.image_new_from_stock(gtk.STOCK_COPY, gtk.ICON_SIZE_MENU)
 		eventbox1.add(copyimage)
 		eventbox1.connect('button_press_event', copy_to_clipboard, text)
@@ -113,6 +115,7 @@ class ContactWindow(gtk.Window):
 		if url or mail:
 			eventbox2 = gtk.EventBox()
 			eventbox2.modify_bg(gtk.STATE_NORMAL,self.even_color)
+			self.tooltips.set_tip(eventbox2,"Click to open!")
 			if mail:
 				urlimage = gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU)
 			else:
@@ -138,7 +141,7 @@ class ContactWindow(gtk.Window):
 		# contact photo
 		photo = gtk.Image()
 		if entry.pixbuf != None:
-			photo.set_from_pixbuf(entry.pixbuf)
+			photo.set_from_pixbuf(get_pixbuf_of_size(entry.pixbuf,50))
 		photo.set_alignment(1,0.5)
 		photo.set_flags('can-focus')
 		self.table.attach(photo, 0, 1, 0, 1, gtk.FILL, 0, 6, 4)
