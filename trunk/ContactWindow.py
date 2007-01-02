@@ -20,7 +20,7 @@ import gtk, gobject, pango
 from Functions import *
 import ContactEntry
 
-order = ['tel', 'email', 'web', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
+order = ['tel', 'email', 'web', 'im', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
 
 class ContactWindow(gtk.Window):
 
@@ -57,32 +57,27 @@ class ContactWindow(gtk.Window):
 		self.vbox.pack_end(self.buttonbox, False)
 
 		addButton = gtk.Button('',gtk.STOCK_ADD)
-		addButton.get_child().get_child().get_children()[1].set_text('')
 		addButton.set_no_show_all(True)
+		addButton.show()
+		addButton.get_child().get_child().get_children()[1].hide()
 		self.buttonbox.pack_start(addButton, False)
 
 		self.buttonbox.pack_start(gtk.Label())
 
-		saveButton = gtk.Button('',gtk.STOCK_SAVE)
-		saveButton.get_child().get_child().get_children()[1].set_text('')
-		saveButton.set_no_show_all(True)
-		self.buttonbox.pack_start(saveButton, False)
-
-		editButton = gtk.Button('',gtk.STOCK_EDIT)
-		editButton.get_child().get_child().get_children()[1].set_text('')
+		editButton = gtk.ToggleButton(gtk.STOCK_EDIT)
+		editButton.set_use_stock(True)
 		editButton.set_no_show_all(True)
-		editButton.connect("clicked", self.switch_to_edit, entry, [addButton,saveButton])
+		editButton.show()
+		editButton.get_child().get_child().get_children()[1].hide()
+		editButton.connect("toggled", self.switch_mode, entry, addButton)
 		self.buttonbox.pack_start(editButton, False)
 
 		closeButton = gtk.Button('',gtk.STOCK_CLOSE)
 		closeButton.connect_object("clicked", gtk.Widget.destroy, self)
 		self.buttonbox.pack_start(closeButton, False)
 
-		if edit_mode:
-			addButton.show()
-			saveButton.show()
-		else:
-			editButton.show()
+		addButton.set_sensitive(edit_mode)
+		editButton.set_active(edit_mode)
 
 		# create widgets
 		self.build_interface(entry, edit_mode)
@@ -111,14 +106,14 @@ class ContactWindow(gtk.Window):
 				textbuffer.set_text(text)
 				textview = gtk.TextView(textbuffer)
 				self.table.attach(textview, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
+				return caption, textview
 			else:
 				# label
-				hbox = gtk.HBox(False, 2)
 				label = gtk.Entry()
 				label.set_text(text)
 				label.set_editable(edit_mode)
 				label.set_has_frame(edit_mode)
-				hbox.pack_start(label)
+				self.table.attach(label, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
 				# buttons
 				if url or mail:
 					if mail:
@@ -127,9 +122,8 @@ class ContactWindow(gtk.Window):
 						urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), self.even_color)
 					self.tooltips.set_tip(urlbutton,"Click to open")
 					urlbutton.connect('button_press_event', open_url, text, mail)
-					hbox.pack_start(urlbutton, False)
-				self.table.attach(hbox, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
-			return caption
+					self.table.attach(urlbutton, 2, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 2)
+				return caption, label
 
 		def add_separator():
 			rows = self.table.get_property('n-rows')
@@ -140,22 +134,29 @@ class ContactWindow(gtk.Window):
 
 		# contact photo
 		photohbox = gtk.HBox(False,2)
-		photo = gtk.Image()
-		if entry.pixbuf:
-			photo.set_from_pixbuf(get_pixbuf_of_size(entry.pixbuf,64, True))
-			hasphoto = True
-		else: hasphoto = False
-		photo.set_alignment(1,0.5)
-		photo.set_flags('can-focus')
-		photohbox.pack_end(photo,False)
 		# contact photo (edit-mode)
 		photovbox = gtk.VBox()
 		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.even_color)
+		if not edit_mode: photoremove.hide()
 		self.tooltips.set_tip(photoremove,"Click to remove image")
 		#photoremove.connect('button_press_event', copy_to_clipboard, text)
 		photovbox.pack_start(photoremove, False)
 		photohbox.pack_start(photovbox, False)
-		if not edit_mode: photoremove.hide()
+
+		viewport = gtk.Viewport()
+		photohbox.pack_start(viewport,False)
+		photo = gtk.Image()
+		if entry.pixbuf:
+			photo.set_from_pixbuf(get_pixbuf_of_size(entry.pixbuf,64, False))
+			hasphoto = True
+		else:
+			photo.set_from_file('no-photo.png')
+			hasphoto = False
+		photo.set_padding(6, 6)
+		photo.set_alignment(1, 0.5)
+		photo.set_flags('can-focus')
+		viewport.add(photo)
+
 		self.table.attach(photohbox, 0, 1, 0, 1, gtk.FILL, 0, 6, 4)
 
 		# big title
@@ -173,7 +174,7 @@ class ContactWindow(gtk.Window):
 		big_title.set_alignment(0,0)
 		big_title.set_selectable(True)
 		#big_title.set_ellipsize(pango.ELLIPSIZE_END)
-		self.table.attach(big_title, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.table.attach(big_title, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 6)
 
 		add_separator()
 
@@ -183,37 +184,54 @@ class ContactWindow(gtk.Window):
 			if type == 'tel':
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
-						if entry.tel[i] != None:
-							caption = "home"
-							if entry.tel[i][1]== 'FAX':
-								caption += " fax"
-							elif entry.tel[i][1]== 'CELL':
-								caption = "mobile"
-							add_label(caption, entry.tel[i][0])
+						caption = "home"
+						if entry.tel[i][1]== 'FAX':
+							caption += " fax"
+						elif entry.tel[i][1]== 'CELL':
+							caption = "mobile"
+						add_label(caption, entry.tel[i][0])
 					add_separator()
 			elif type == 'work_tel':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
-						if entry.work_tel[i] != None:
-							caption = "work"
-							if entry.work_tel[i][1]== 'FAX':
-								caption += " fax"
-							elif entry.work_tel[i][1]== 'CELL':
-								caption += " mobile"
-							add_label(caption, entry.work_tel[i][0])
+						caption = "work"
+						if entry.work_tel[i][1]== 'FAX':
+							caption += " fax"
+						elif entry.work_tel[i][1]== 'CELL':
+							caption += " mobile"
+						add_label(caption, entry.work_tel[i][0])
 					add_separator()
 			# emails
 			elif type == 'email':
 				if len(entry.email) > 0:
 					for i in range(len(entry.email)):
-						if entry.email[i] != None:
-							add_label("email", entry.email[i], True, True)
+						add_label("email", entry.email[i], True, True)
 					add_separator()
 			elif type == 'work_email':
 				if len(entry.work_email) > 0:
 					for i in range(len(entry.work_email)):
-						if entry.work_email[i] != None:
-							add_label("work email", entry.work_email[i], True, True)
+						add_label("work email", entry.work_email[i], True, True)
+					add_separator()
+			# web
+			elif type == 'web':
+				if len(entry.url) > 0:
+					add_label("web", entry.url, True)
+				if len(entry.videoconference) > 0:
+					add_label("video", entry.videoconference, True)
+				if len(entry.url) > 0 or len(entry.videoconference) > 0:
+					add_separator()
+			elif type == 'work_web':
+				if len(entry.work_url) > 0:
+					add_label("work", entry.work_url, True)
+				if len(entry.work_videoconference) > 0:
+					add_label("work", entry.work_videoconference, True)
+				if len(entry.work_url) > 0 or len(entry.work_videoconference) > 0:
+					add_separator()
+			# instant messaging
+			elif type == 'im':
+				if len(entry.im) > 0:
+					for i in range(len(entry.im)):
+						add_label("im", entry.im[i][0], True)
 					add_separator()
 			# address
 			elif 'address' in type:
@@ -238,21 +256,6 @@ class ContactWindow(gtk.Window):
 						text += "\n" + country
 					add_label(caption, text, multiline = True)
 					add_separator()
-			# web
-			elif type == 'web':
-				if len(entry.url) > 0:
-					add_label("web", entry.url, True)
-				if len(entry.videoconference) > 0:
-					add_label("video", entry.videoconference, True)
-				if len(entry.url) > 0 or len(entry.videoconference) > 0:
-					add_separator()
-			elif type == 'work_web':
-				if len(entry.work_url) > 0:
-					add_label("work", entry.work_url, True)
-				if len(entry.work_videoconference) > 0:
-					add_label("work", entry.work_videoconference, True)
-				if len(entry.work_url) > 0 or len(entry.work_videoconference) > 0:
-					add_separator()
 			# birthday
 			elif type == 'bday':
 				try:
@@ -265,13 +268,20 @@ class ContactWindow(gtk.Window):
 				if len(entry.note_text) > 0:
 					rows = self.table.get_property('n-rows')
 					self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
-					notecaption = add_label("Note:", entry.note_text, multiline = True)
+					notecaption, notetextview = add_label("Note:", entry.note_text, multiline = True)
 					notecaption.set_alignment(0,0)
+					notetextview.set_wrap_mode(gtk.WRAP_WORD)
+
+		self.table.resize_children()
+		self.table.show_all()
+
 	#---------------
 	# event funtions
 	#---------------
-	def switch_to_edit(self, button, entry, widgets):
-		for widget in widgets:
-			widget.show()
-		button.hide()
-		print self.table.get_children()[4].get_children()
+	def switch_mode(self, button, entry, widget):
+		state = button.get_active()
+		widget.set_sensitive(state)
+		for child in self.table.get_children():
+			if child.__class__== gtk.Entry:
+				child.set_editable(state)
+				child.set_has_frame(state)

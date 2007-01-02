@@ -87,9 +87,9 @@ class MainWindow(gtk.Window):
 			  <toolitem action="Preferences"/>
 			 </toolbar>
 			 <popup name="Itemmenu">
-			  <menuitem action="NewContact"/>
 			  <menuitem action="ShowContact"/>
 			  <menuitem action="EditContact"/>
+			  <menuitem action="NewContact"/>
 			  <menuitem action="DeleteContact"/>
 			  <separator name="SM1"/>
 			  <menuitem action="CopyName"/>

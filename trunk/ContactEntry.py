@@ -22,8 +22,8 @@ foldmark = '\n '
 #tel_options = [ _('Landline'), _('ISDN'), _('Mobile'), _('Car'), _('Video'), _('Pager'), _('Fax'), _('Modem'), _('BBS'), _('PCS') ]
 tel_types = [ 'VOICE', 'ISDN', 'CELL', 'CAR', 'VIDEO', 'PAGER', 'FAX', 'MODEM', 'BBS', 'PCS' ]
 
-#im_options = [ 'AIM', 'Gadu-Gadu', 'GroupWise', 'ICQ', 'IRC', 'Jabber','MSN', 'Napster', 'Yahoo', 'Zephyr' ]
-im_types = [ 'X-AIM', 'X-GADU-GADU', 'X-GROUPWISE', 'X-ICQ', 'X-IRC', 'X-JABBER', 'X-MSN', 'X-NAPSTER', 'X-YAHOO', 'X-ZEPHYR' ]
+im_options = ['AIM', 'Gadu-Gadu', 'GroupWise', 'ICQ', 'IRC', 'Jabber','MSN', 'Napster', 'Yahoo', 'Zephyr']
+im_types = ['X-AIM', 'X-GADU-GADU', 'X-GROUPWISE', 'X-ICQ', 'X-IRC', 'X-JABBER', 'X-MSN', 'X-NAPSTER', 'X-YAHOO', 'X-ZEPHYR']
 
 class Entry:
 
@@ -64,7 +64,7 @@ class Entry:
 		self.work_tel = [] ; self.tel = []
 		self.work_url = '' ; self.url = ''
 		self.work_videoconference = '' ; self.videoconference = ''
-		self.im = len(im_types) * [None]
+		self.im = []
 		self.unknown_properties = {}
 
 		def bday_from_dict(value):
@@ -193,10 +193,8 @@ class Entry:
 					self.photo_type = "B64"
 				else:
 					self.photo = None
-			# Instant Messaging
 			elif type in im_types:
-				history = im_types.index(type)
-				self.im[history] = self.unescape(value)
+				self.im.append([self.unescape(value), type])
 			elif type == "X-EVOLUTION-BLOG-URL":
 				value = self.unescape(value)
 			elif type == "X-EVOLUTION-FILE-AS":
