@@ -5,13 +5,24 @@
 __author__ = "Paul Johnson"
 __email__ = "thrillerator@googlemail.com"
 
-import sys
+import sys, os, gtk
 # local
 import MainWindow
 
+# Test pygtk version
+if gtk.pygtk_version < (2, 6, 0):
+	sys.stderr.write("requires PyGTK 2.6.0 or newer.\n")
+	sys.exit(1)
+
 if __name__ == "__main__":
-	app = MainWindow.ContactList()
+	path = sys.path[0]
+	origpath = os.getcwd()
+	os.chdir(path)
+	sys.path.append(path)
+	mainwindow = MainWindow.MainWindow()
+	mainwindow.show()
 	try:
-		app.main()
+		gtk.main()
 	except KeyboardInterrupt:
 		pass
+	os.chdir(origpath)

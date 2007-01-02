@@ -19,16 +19,30 @@ class ImageButton(gtk.EventBox):
 		self.set_no_show_all(True)
 		del image
 
-def get_pixbuf_of_size(pixbuf, size):
+def get_pixbuf_of_size(pixbuf, size, crop = False):
 	image_width = pixbuf.get_width()
 	image_height = pixbuf.get_height()
-	if image_width-size > image_height-size:
-		image_height = int(size/float(image_width)*image_height)
-		image_width = size
+	image_xdiff = 0
+	image_ydiff = 0
+	if crop:
+		if image_width-size > image_height-size:
+			image_xdiff = int((image_width-image_height)/2)
+			image_width = image_height
+		else:
+			image_ydiff = int((image_height-image_width)/2)
+			image_height = image_width
+		new_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, image_width, image_height)
+		new_pixbuf.fill(0x00000000)
+		pixbuf.copy_area(image_xdiff, image_ydiff, image_width, image_height, new_pixbuf, 0, 0)
+		crop_pixbuf = new_pixbuf.scale_simple(size, size, gtk.gdk.INTERP_HYPER)
 	else:
-		image_width = int(size/float(image_height)*image_width)
-		image_height = size
-	crop_pixbuf = pixbuf.scale_simple(image_width, image_height, gtk.gdk.INTERP_HYPER)
+		if image_width-size > image_height-size:
+			image_height = int(size/float(image_width)*image_height)
+			image_width = size
+		else:
+			image_width = int(size/float(image_height)*image_width)
+			image_height = size
+		crop_pixbuf = pixbuf.scale_simple(image_width, image_height, gtk.gdk.INTERP_HYPER)
 	return crop_pixbuf
 
 def get_pixbuf_of_size_from_file(filename, size):

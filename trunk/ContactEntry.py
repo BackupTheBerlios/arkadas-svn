@@ -233,15 +233,7 @@ class Entry:
 			keylist = key.split(';')
 			for item in keylist:
 				if item.find("QUOTED-PRINTABLE") >= 0:
-					#for n in keylist:
-						#if n == "NOTE":
-							#print "********before************"
-							#print value
-							#print "********after************"
-							#decoder = codecs.getdecoder('quopri_codec')
-							#print decoder(value)[0]
 					value = quopri.decodestring(value)
-					#print value
 				if item.find("CHARSET") == 0:
 					encoding = item.split('=', 1)[0].lower()
 
@@ -255,8 +247,9 @@ class Entry:
 
 			return value
 
+		self.filename = filename
 		self.dict = {}
-		if not self.get_card_from_file(filename): return False
+		if not self.get_card_from_file(): return False
 
 		for l in self.card:
 			line = l.strip("\r\n")
@@ -308,12 +301,12 @@ class Entry:
 
 		return encoding
 
-	def get_card_from_file(self, filename):
+	def get_card_from_file(self):
 		"""Get card from file as list with lines unfolded"""
 		self.card = []
 		self.encoding = 'utf-8'
 		try:
-			file = open(filename, 'r')
+			file = open(self.filename, 'r')
 			contents = file.read()
 			file.close()
 
