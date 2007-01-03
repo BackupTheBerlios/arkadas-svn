@@ -1,5 +1,94 @@
 import gtk, subprocess
 
+class EntryLabel(gtk.Entry):
+	def __init__(self, text):
+		gtk.Entry.__init__(self)
+
+		self.type = None
+		self.set_text(text)
+
+		self.connect("focus-in-event", self.focus_changed, True)
+		self.connect("focus-out-event", self.focus_changed, False)
+
+	def set_text(self, text):
+		gtk.Entry.set_text(self, text)
+
+	def get_text(self):
+		return gtk.Entry.get_text(self)
+
+	def set_type(self, caption_type, type):
+		self.type = type
+		self.caption_type = caption_type
+
+	def get_type(self):
+		return self.type
+
+	def set_editable(self, editable):
+		gtk.Entry.set_editable(self, editable)
+		gtk.Entry.set_has_frame(self, editable)
+		if editable: self.focus_changed(None, None, False)
+		else: self.focus_changed(None, None, True)
+
+	def focus_changed(self, widget, event, focus):
+		text = self.get_text().strip()
+		if focus:
+			if text.startswith('(') and self.type is not None:
+				self.set_text('')
+		else:
+			if text == '' and self.type is not None:
+				self.set_text("(%s)" % self.caption_type)
+
+class AddressField(gtk.Table):
+	def __init__(self, address):
+		gtk.Table.__init__(self, 4, 2)
+
+		self.set_no_show_all(True)
+
+		self.address_name = ("Postbox", "Extended", "Street", "City", "State", "Zip", "Country")
+		self.address = address
+		self.widgetlist = 7 * [None]
+
+		self.build_interface()
+
+		self.set_editable(False)
+		self.show()
+
+	def build_interface(self):
+		for i in range(len(self.address)):
+			widget = EntryLabel(self.address[i])
+			widget.set_editable(False)
+			widget.set_type(self.address_name[i],'adr')
+			if i == 5: widget.set_width_chars(len(widget.get_text()))
+			widget.connect("changed", self.changed)
+			self.widgetlist[i] = widget
+
+		self.attach(self.widgetlist[2], 0, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[0], 0, 2, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[5], 0, 1, 2, 3, gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[3], 1, 2, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[6], 0, 2, 3, 4, gtk.EXPAND|gtk.FILL, gtk.FILL)
+
+	def set_editable(self, editable = False):
+		for widget in self.widgetlist:
+			num = self.widgetlist.index(widget)
+			widget.set_editable(editable)
+			if editable:
+				widget.show()
+				if num == 0: widget.set_text(self.address[num])
+			else:
+				if self.address[num] == '':
+					widget.hide()
+				else:
+					widget.show()
+					if num == 0: widget.set_text("Postbox " + self.address[num])
+
+	def changed(self, widget):
+		num = self.widgetlist.index(widget)
+		text = widget.get_text()
+		if num == 0: text = text.replace("Postbox ", "")
+		if num == 5: widget.set_width_chars(len(text))
+		self.address[num] = text.strip()
+
 class ImageButton(gtk.EventBox):
 	def __init__(self, image, color = None):
 		def hover_image(widget, event):

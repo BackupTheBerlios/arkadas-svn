@@ -20,7 +20,7 @@ import gtk, gobject, pango
 from Functions import *
 import ContactEntry
 
-order = ['tel', 'email', 'web', 'im', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address', 'note']
+order = ['tel', 'email', 'web', 'im', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address']
 
 class ContactWindow(gtk.Window):
 
@@ -76,59 +76,57 @@ class ContactWindow(gtk.Window):
 		closeButton.connect_object("clicked", gtk.Widget.destroy, self)
 		self.buttonbox.pack_start(closeButton, False)
 
+		# create widgets
+		self.build_interface(entry)
+
 		addButton.set_sensitive(edit_mode)
 		editButton.set_active(edit_mode)
 
-		# create widgets
-		self.build_interface(entry, edit_mode)
-
-	def build_interface(self, entry, edit_mode = False):
+	def build_interface(self, entry):
 		# help-functions
 		#---------------
-		def add_label(caption_text, text, url = False, mail = False, multiline = False):
-			def open_url(widget, event, text, mail = False):
-				if not mail:
-					browser_load(text, self)
-				else:
-					browser_load("mailto:" + text, self)
-
+		def add_label(caption_text, caption_type, text, type):
 			rows = self.table.get_property('n-rows')
 
 			# caption
 			caption = gtk.Label()
-			caption.set_markup("<b>%s</b>" % (caption_text + text.count('\n') * "\n"))
+			caption.set_markup("<b>%s</b>" % (caption_text))
 			caption.set_alignment(1,0.5)
-			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6, 2)
+			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6)
 
-			if multiline:
+			if 'address' in type:
+				# address
+				address = AddressField(text)
+				self.table.attach(address, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+			elif type == 'note':
 				# multiline label
+				caption.set_alignment(0,0)
 				textbuffer = gtk.TextBuffer()
 				textbuffer.set_text(text)
 				textview = gtk.TextView(textbuffer)
-				self.table.attach(textview, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
-				return caption, textview
+				textview.set_wrap_mode(gtk.WRAP_WORD)
+				self.table.attach(textview, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 			else:
-				# label
-				label = gtk.Entry()
-				label.set_text(text)
-				label.set_editable(edit_mode)
-				label.set_has_frame(edit_mode)
-				self.table.attach(label, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 2)
+				# entrylabel
+				entrylabel = EntryLabel(text)
+				entrylabel.set_editable(False)
+				entrylabel.set_type(caption_type, type)
+				self.table.attach(entrylabel, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 				# buttons
-				if url or mail:
-					if mail:
+				if 'email' in type or 'web' in type:
+					if 'email' in type:
 						urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), self.even_color)
-					else:
+						urlbutton.connect('button_press_event', lambda w,e: browser_load("mailto:" + text,self))
+					elif 'web' in type:
 						urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), self.even_color)
+						urlbutton.connect('button_press_event', lambda w,e: browser_load(text,self))
 					self.tooltips.set_tip(urlbutton,"Click to open")
-					urlbutton.connect('button_press_event', open_url, text, mail)
-					self.table.attach(urlbutton, 2, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL, 2)
-				return caption, label
+					self.table.attach(urlbutton, 2, 3, rows, rows+1, gtk.FILL, gtk.FILL, 2)
 
 		def add_separator():
 			rows = self.table.get_property('n-rows')
 			seplabel = gtk.Label()
-			seplabel.set_size_request(-1,5)
+			seplabel.set_size_request(-1,4)
 			self.table.attach(seplabel, 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0)
 		#---------------
 
@@ -137,7 +135,7 @@ class ContactWindow(gtk.Window):
 		# contact photo (edit-mode)
 		photovbox = gtk.VBox()
 		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.even_color)
-		if not edit_mode: photoremove.hide()
+		photoremove.hide()
 		self.tooltips.set_tip(photoremove,"Click to remove image")
 		#photoremove.connect('button_press_event', copy_to_clipboard, text)
 		photovbox.pack_start(photoremove, False)
@@ -185,92 +183,82 @@ class ContactWindow(gtk.Window):
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
 						caption = "home"
+						caption_type = "Phone"
 						if entry.tel[i][1]== 'FAX':
 							caption += " fax"
+							caption_type = "Fax"
 						elif entry.tel[i][1]== 'CELL':
 							caption = "mobile"
-						add_label(caption, entry.tel[i][0])
+							caption_type = "Mobile"
+						label = add_label(caption, caption_type, entry.tel[i][0], type)
 					add_separator()
 			elif type == 'work_tel':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
 						caption = "work"
+						caption_type = "Phone"
 						if entry.work_tel[i][1]== 'FAX':
 							caption += " fax"
+							caption_type = "Fax"
 						elif entry.work_tel[i][1]== 'CELL':
 							caption += " mobile"
-						add_label(caption, entry.work_tel[i][0])
+							caption_type = "Mobile"
+						add_label(caption, caption_type, entry.work_tel[i][0], type)
 					add_separator()
 			# emails
 			elif type == 'email':
 				if len(entry.email) > 0:
 					for i in range(len(entry.email)):
-						add_label("email", entry.email[i], True, True)
+						add_label("email", "Email", entry.email[i], type)
 					add_separator()
 			elif type == 'work_email':
 				if len(entry.work_email) > 0:
 					for i in range(len(entry.work_email)):
-						add_label("work email", entry.work_email[i], True, True)
+						add_label("work email", "Email", entry.work_email[i], type)
 					add_separator()
 			# web
 			elif type == 'web':
 				if len(entry.url) > 0:
-					add_label("web", entry.url, True)
+					add_label("web", "Website", entry.url, type)
 				if len(entry.videoconference) > 0:
-					add_label("video", entry.videoconference, True)
+					add_label("video", "Videoconference", entry.videoconference, type)
 				if len(entry.url) > 0 or len(entry.videoconference) > 0:
 					add_separator()
 			elif type == 'work_web':
 				if len(entry.work_url) > 0:
-					add_label("work", entry.work_url, True)
+					add_label("work", "Website", entry.work_url, type)
 				if len(entry.work_videoconference) > 0:
-					add_label("work", entry.work_videoconference, True)
+					add_label("work", "Videoconference", entry.work_videoconference, type)
 				if len(entry.work_url) > 0 or len(entry.work_videoconference) > 0:
 					add_separator()
 			# instant messaging
 			elif type == 'im':
 				if len(entry.im) > 0:
 					for i in range(len(entry.im)):
-						add_label("im", entry.im[i][0], True)
+						imtype = ContactEntry.im_options[ContactEntry.im_types.index(entry.im[i][1])]
+						add_label(imtype, imtype, entry.im[i][0], type)
 					add_separator()
 			# address
 			elif 'address' in type:
-				caption = None
 				if 'work' in type and len(entry.work_address) > 0:
-					(pobox, extended, street, city, state, zip, country) = entry.work_address
-					caption = "work"
+					add_label("work", None, entry.work_address, type)
+					add_separator()
 				elif len(entry.address) > 0:
-					(pobox, extended, street, city, state, zip, country) = entry.address
-					caption = "home"
-				if caption:
-					text = ""
-					if street:
-						text += street
-					if pobox:
-						text += "\nPostbox " + pobox
-					if zip and city:
-						text += "\n" + zip + " " + city
-					if city and state:
-						text += " (" + state + ")"
-					if country:
-						text += "\n" + country
-					add_label(caption, text, multiline = True)
+					add_label("home", None, entry.address, type)
 					add_separator()
 			# birthday
 			elif type == 'bday':
 				try:
 					if entry.bday_year:
 						date = datetime.date(entry.bday_year, entry.bday_month, entry.bday_day).strftime("%d.%m.%Y")
-						add_label("birthday", date)
+						add_label("birthday", "Birthday", date, type)
 						add_separator()
 				except: pass
-			elif type == 'note':
-				if len(entry.note_text) > 0:
-					rows = self.table.get_property('n-rows')
-					self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
-					notecaption, notetextview = add_label("Note:", entry.note_text, multiline = True)
-					notecaption.set_alignment(0,0)
-					notetextview.set_wrap_mode(gtk.WRAP_WORD)
+
+		if len(entry.note_text) > 0:
+			rows = self.table.get_property('n-rows')
+			self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
+			add_label("Note:", None, entry.note_text, 'note')
 
 		self.table.resize_children()
 		self.table.show_all()
@@ -282,6 +270,5 @@ class ContactWindow(gtk.Window):
 		state = button.get_active()
 		widget.set_sensitive(state)
 		for child in self.table.get_children():
-			if child.__class__== gtk.Entry:
+			if child.__class__== EntryLabel or child.__class__== AddressField:
 				child.set_editable(state)
-				child.set_has_frame(state)
