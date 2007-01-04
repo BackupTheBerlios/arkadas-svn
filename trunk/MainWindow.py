@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 import sys, os, urllib, base64
 import gtk, gobject, pango
 # local
-from Functions import *
+from Commons import *
 import ContactEntry, ContactWindow
 
 class MainWindow(gtk.Window):
