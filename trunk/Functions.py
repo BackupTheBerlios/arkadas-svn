@@ -1,14 +1,19 @@
 import gtk, subprocess
 
 class EntryLabel(gtk.Entry):
-	def __init__(self, text):
+	def __init__(self, text, label):
 		gtk.Entry.__init__(self)
 
 		self.type = None
+		self.caption_label = label
 		self.set_text(text)
 
 		self.connect("focus-in-event", self.focus_changed, True)
 		self.connect("focus-out-event", self.focus_changed, False)
+
+	def destroy(self):
+		self.caption_label.destroy()
+		gtk.Entry.destroy(self)
 
 	def set_text(self, text):
 		gtk.Entry.set_text(self, text)
@@ -21,7 +26,7 @@ class EntryLabel(gtk.Entry):
 		self.caption_type = caption_type
 
 	def get_type(self):
-		return self.type
+		return self.type, self.caption_type
 
 	def set_editable(self, editable):
 		gtk.Entry.set_editable(self, editable)
@@ -39,12 +44,13 @@ class EntryLabel(gtk.Entry):
 				self.set_text("(%s)" % self.caption_type)
 
 class AddressField(gtk.Table):
-	def __init__(self, address):
+	def __init__(self, address, label):
 		gtk.Table.__init__(self, 4, 2)
 
+		self.caption_label = label
 		self.set_no_show_all(True)
 
-		self.address_name = ("Postbox", "Extended", "Street", "City", "State", "Zip", "Country")
+		self.address_options = ("Postbox", "Extended", "Street", "City", "State", "Zip", "Country")
 		self.address = address
 		self.widgetlist = 7 * [None]
 
@@ -53,20 +59,27 @@ class AddressField(gtk.Table):
 		self.set_editable(False)
 		self.show()
 
+	def destroy(self):
+		self.caption_label.destroy()
+		gtk.Table.destroy(self)
+
 	def build_interface(self):
 		for i in range(len(self.address)):
-			widget = EntryLabel(self.address[i])
+			widget = EntryLabel(self.address[i], self.caption_label)
 			widget.set_editable(False)
-			widget.set_type(self.address_name[i],'adr')
+			widget.set_type(self.address_options[i],'address')
+			if i == 3: widget.set_width_chars(len(widget.get_text()))
+			if i == 4: widget.set_width_chars(len(widget.get_text()))
 			if i == 5: widget.set_width_chars(len(widget.get_text()))
 			widget.connect("changed", self.changed)
 			self.widgetlist[i] = widget
 
-		self.attach(self.widgetlist[2], 0, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[0], 0, 2, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[2], 0, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[0], 0, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
 		self.attach(self.widgetlist[5], 0, 1, 2, 3, gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[3], 1, 2, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[6], 0, 2, 3, 4, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[3], 1, 2, 2, 3, gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[4], 2, 3, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.widgetlist[6], 0, 3, 3, 4, gtk.EXPAND|gtk.FILL, gtk.FILL)
 
 	def set_editable(self, editable = False):
 		for widget in self.widgetlist:
@@ -86,6 +99,8 @@ class AddressField(gtk.Table):
 		num = self.widgetlist.index(widget)
 		text = widget.get_text()
 		if num == 0: text = text.replace("Postbox ", "")
+		if num == 3: widget.set_width_chars(len(text))
+		if num == 4: widget.set_width_chars(len(text))
 		if num == 5: widget.set_width_chars(len(text))
 		self.address[num] = text.strip()
 

@@ -19,7 +19,7 @@ import codecs, quopri, urllib
 foldmarks = ['\r\n\t', '\r\n ',  '\n\t', '\n ']
 foldmark = '\n '
 
-#tel_options = [ _('Landline'), _('ISDN'), _('Mobile'), _('Car'), _('Video'), _('Pager'), _('Fax'), _('Modem'), _('BBS'), _('PCS') ]
+tel_options = ['Landline', 'ISDN', 'Mobile', 'Car', 'Video', 'Pager', 'Fax', 'Modem', 'BBS', 'PCS']
 tel_types = [ 'VOICE', 'ISDN', 'CELL', 'CAR', 'VIDEO', 'PAGER', 'FAX', 'MODEM', 'BBS', 'PCS' ]
 
 im_options = ['AIM', 'Gadu-Gadu', 'GroupWise', 'ICQ', 'IRC', 'Jabber','MSN', 'Napster', 'Yahoo', 'Zephyr']

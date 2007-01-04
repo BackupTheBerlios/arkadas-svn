@@ -51,7 +51,6 @@ class ContactWindow(gtk.Window):
 		self.table.set_border_width(6)
 		scrolledwindow.add_with_viewport(self.table)
 		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.even_color)
-
 		# buttons
 		self.buttonbox = gtk.HBox(False, 6)
 		self.vbox.pack_end(self.buttonbox, False)
@@ -96,7 +95,7 @@ class ContactWindow(gtk.Window):
 
 			if 'address' in type:
 				# address
-				address = AddressField(text)
+				address = AddressField(text, caption)
 				self.table.attach(address, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 			elif type == 'note':
 				# multiline label
@@ -108,7 +107,7 @@ class ContactWindow(gtk.Window):
 				self.table.attach(textview, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 			else:
 				# entrylabel
-				entrylabel = EntryLabel(text)
+				entrylabel = EntryLabel(text, caption)
 				entrylabel.set_editable(False)
 				entrylabel.set_type(caption_type, type)
 				self.table.attach(entrylabel, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
@@ -183,27 +182,23 @@ class ContactWindow(gtk.Window):
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
 						caption = "home"
-						caption_type = "Phone"
 						if entry.tel[i][1]== 'FAX':
 							caption += " fax"
-							caption_type = "Fax"
 						elif entry.tel[i][1]== 'CELL':
 							caption = "mobile"
-							caption_type = "Mobile"
-						label = add_label(caption, caption_type, entry.tel[i][0], type)
+						teltype = ContactEntry.tel_options[ContactEntry.tel_types.index(entry.tel[i][1])]
+						label = add_label(caption, teltype, entry.tel[i][0], type)
 					add_separator()
 			elif type == 'work_tel':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
 						caption = "work"
-						caption_type = "Phone"
 						if entry.work_tel[i][1]== 'FAX':
 							caption += " fax"
-							caption_type = "Fax"
 						elif entry.work_tel[i][1]== 'CELL':
 							caption += " mobile"
-							caption_type = "Mobile"
-						add_label(caption, caption_type, entry.work_tel[i][0], type)
+						teltype = ContactEntry.tel_options[ContactEntry.tel_types.index(entry.work_tel[i][1])]
+						add_label(caption, teltype, entry.work_tel[i][0], type)
 					add_separator()
 			# emails
 			elif type == 'email':
@@ -221,14 +216,14 @@ class ContactWindow(gtk.Window):
 				if len(entry.url) > 0:
 					add_label("web", "Website", entry.url, type)
 				if len(entry.videoconference) > 0:
-					add_label("video", "Videoconference", entry.videoconference, type)
+					add_label("video", "Videoconference", entry.videoconference, "video")
 				if len(entry.url) > 0 or len(entry.videoconference) > 0:
 					add_separator()
 			elif type == 'work_web':
 				if len(entry.work_url) > 0:
 					add_label("work", "Website", entry.work_url, type)
 				if len(entry.work_videoconference) > 0:
-					add_label("work", "Videoconference", entry.work_videoconference, type)
+					add_label("work", "Videoconference", entry.work_videoconference, "work_video")
 				if len(entry.work_url) > 0 or len(entry.work_videoconference) > 0:
 					add_separator()
 			# instant messaging
@@ -236,7 +231,7 @@ class ContactWindow(gtk.Window):
 				if len(entry.im) > 0:
 					for i in range(len(entry.im)):
 						imtype = ContactEntry.im_options[ContactEntry.im_types.index(entry.im[i][1])]
-						add_label(imtype, imtype, entry.im[i][0], type)
+						add_label(imtype, imtype, entry.im[i][0], entry.im[i][1])
 					add_separator()
 			# address
 			elif 'address' in type:
@@ -266,9 +261,18 @@ class ContactWindow(gtk.Window):
 	#---------------
 	# event funtions
 	#---------------
+	def adjustments_updated(self, widget, hadjustment, vadjustment):
+		print "test"
+
 	def switch_mode(self, button, entry, widget):
 		state = button.get_active()
 		widget.set_sensitive(state)
 		for child in self.table.get_children():
-			if child.__class__== EntryLabel or child.__class__== AddressField:
+			if child.__class__== EntryLabel:
 				child.set_editable(state)
+				# remove if empty
+				if child.get_text() == '': child.destroy() ; continue
+			elif child.__class__== AddressField:
+				child.set_editable(state)
+				# remove if empty
+				if child.address == len(child.address) * ['']: child.destroy() ; continue
