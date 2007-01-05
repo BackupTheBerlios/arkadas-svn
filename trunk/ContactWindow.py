@@ -20,12 +20,17 @@ import gtk, gobject, pango
 from Commons import *
 import ContactEntry
 
-order = ['tel', 'email', 'web', 'im', 'bday', 'address', 'work_tel', 'work_email', 'work_web', 'work_address']
+order = ['TEL', 'EMAIL', 'WEB', 'IM', 'BDAY', 'ADR', 'WORK_TEL', 'WORK_EMAIL', 'WORK_WEB', 'WORK_ADR']
 
 class ContactWindow(gtk.Window):
 
 	def __init__(self, parent, entry, edit_mode = False):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+
+		if len(entry.fullname) > 0:
+			self.set_title(entry.fullname)
+		else:
+			self.set_title('Contact')
 
 		self.set_resizable(True)
 		self.set_default_size(-1,400)
@@ -35,8 +40,9 @@ class ContactWindow(gtk.Window):
 
 		self.tooltips = gtk.Tooltips()
 
-		self.even_color = parent.contactList.style_get_property('even-row-color')
-		self.odd_color = parent.contactList.style_get_property('odd-row-color')
+		self.widgets = []
+
+		self.color = gtk.gdk.color_parse('white')
 
 		self.vbox = gtk.VBox(False, 6)
 		self.vbox.set_border_width(6)
@@ -50,7 +56,7 @@ class ContactWindow(gtk.Window):
 		self.table = gtk.Table()
 		self.table.set_border_width(6)
 		scrolledwindow.add_with_viewport(self.table)
-		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.even_color)
+		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.color)
 		# buttons
 		self.buttonbox = gtk.HBox(False, 6)
 		self.vbox.pack_end(self.buttonbox, False)
@@ -84,43 +90,39 @@ class ContactWindow(gtk.Window):
 	def build_interface(self, entry):
 		# help-functions
 		#---------------
-		def add_label(caption_text, caption_type, text, type):
+		def add_label(caption_text, text, type):
 			rows = self.table.get_property('n-rows')
 
 			# caption
-			caption = gtk.Label()
-			caption.set_markup("<b>%s</b>" % (caption_text))
-			caption.set_alignment(1,0.5)
-			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 6)
+			caption = ComboLabel(caption_text, type)
+			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 4)
 
-			if 'address' in type:
+			if 'ADR' in type:
 				# address
-				address = AddressField(text, caption)
-				self.table.attach(address, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
-			elif type == 'note':
+				field = AddressField(text)
+			elif type == 'NOTE':
 				# multiline label
-				caption.set_alignment(0,0)
 				textbuffer = gtk.TextBuffer()
 				textbuffer.set_text(text)
-				textview = gtk.TextView(textbuffer)
-				textview.set_wrap_mode(gtk.WRAP_WORD)
-				self.table.attach(textview, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+				field = gtk.TextView(textbuffer)
+				field.set_wrap_mode(gtk.WRAP_WORD)
 			else:
 				# entrylabel
-				entrylabel = EntryLabel(text, caption)
-				entrylabel.set_editable(False)
-				entrylabel.set_type(caption_type, type)
-				self.table.attach(entrylabel, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+				field = EntryLabel(text, "Empty")
+				field.set_editable(False)
 				# buttons
-				if 'email' in type or 'web' in type:
-					if 'email' in type:
-						urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), self.even_color)
+				if 'EMAIL' in type or 'WEB' in type:
+					if 'EMAIL' in type:
+						urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), self.color)
 						urlbutton.connect('button_press_event', lambda w,e: browser_load("mailto:" + text,self))
-					elif 'web' in type:
-						urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), self.even_color)
+					elif 'WEB' in type:
+						urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), self.color)
 						urlbutton.connect('button_press_event', lambda w,e: browser_load(text,self))
 					self.tooltips.set_tip(urlbutton,"Click to open")
 					self.table.attach(urlbutton, 2, 3, rows, rows+1, gtk.FILL, gtk.FILL, 2)
+
+			self.table.attach(field, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+			self.widgets.append([caption, field, type])
 
 		def add_separator():
 			rows = self.table.get_property('n-rows')
@@ -133,7 +135,7 @@ class ContactWindow(gtk.Window):
 		photohbox = gtk.HBox(False,2)
 		# contact photo (edit-mode)
 		photovbox = gtk.VBox()
-		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.even_color)
+		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.color)
 		photoremove.hide()
 		self.tooltips.set_tip(photoremove,"Click to remove image")
 		#photoremove.connect('button_press_event', copy_to_clipboard, text)
@@ -178,7 +180,7 @@ class ContactWindow(gtk.Window):
 		# add widgets in order
 		for type in order:
 			# tel numbers
-			if type == 'tel':
+			if type == 'TEL':
 				if len(entry.tel) > 0:
 					for i in range(len(entry.tel)):
 						caption = "home"
@@ -186,10 +188,9 @@ class ContactWindow(gtk.Window):
 							caption += " fax"
 						elif entry.tel[i][1]== 'CELL':
 							caption = "mobile"
-						teltype = ContactEntry.tel_options[ContactEntry.tel_types.index(entry.tel[i][1])]
-						label = add_label(caption, teltype, entry.tel[i][0], type)
+						label = add_label(caption, entry.tel[i][0], type)
 					add_separator()
-			elif type == 'work_tel':
+			elif type == 'WORK_TEL':
 				if len(entry.work_tel) > 0:
 					for i in range(len(entry.work_tel)):
 						caption = "work"
@@ -197,63 +198,56 @@ class ContactWindow(gtk.Window):
 							caption += " fax"
 						elif entry.work_tel[i][1]== 'CELL':
 							caption += " mobile"
-						teltype = ContactEntry.tel_options[ContactEntry.tel_types.index(entry.work_tel[i][1])]
-						add_label(caption, teltype, entry.work_tel[i][0], type)
+						add_label(caption, entry.work_tel[i][0], type)
 					add_separator()
 			# emails
-			elif type == 'email':
+			elif type == 'EMAIL':
 				if len(entry.email) > 0:
 					for i in range(len(entry.email)):
-						add_label("email", "Email", entry.email[i], type)
+						add_label("home", entry.email[i], type)
 					add_separator()
-			elif type == 'work_email':
+			elif type == 'WORK_EMAIL':
 				if len(entry.work_email) > 0:
 					for i in range(len(entry.work_email)):
-						add_label("work email", "Email", entry.work_email[i], type)
+						add_label("work", entry.work_email[i], type)
 					add_separator()
 			# web
-			elif type == 'web':
+			elif type == 'WEB':
 				if len(entry.url) > 0:
-					add_label("web", "Website", entry.url, type)
-				if len(entry.videoconference) > 0:
-					add_label("video", "Videoconference", entry.videoconference, "video")
-				if len(entry.url) > 0 or len(entry.videoconference) > 0:
+					add_label("home page", entry.url, type)
 					add_separator()
-			elif type == 'work_web':
+			elif type == 'WORK_WEB':
 				if len(entry.work_url) > 0:
-					add_label("work", "Website", entry.work_url, type)
-				if len(entry.work_videoconference) > 0:
-					add_label("work", "Videoconference", entry.work_videoconference, "work_video")
-				if len(entry.work_url) > 0 or len(entry.work_videoconference) > 0:
+					add_label("work page", entry.work_url, type)
 					add_separator()
 			# instant messaging
-			elif type == 'im':
+			elif type == 'IM':
 				if len(entry.im) > 0:
 					for i in range(len(entry.im)):
-						imtype = ContactEntry.im_options[ContactEntry.im_types.index(entry.im[i][1])]
-						add_label(imtype, imtype, entry.im[i][0], entry.im[i][1])
+						text = "%s (%s)" % (entry.im[i][0], types[entry.im[i][1]])
+						add_label("home", text, entry.im[i][1])
 					add_separator()
 			# address
-			elif 'address' in type:
-				if 'work' in type and len(entry.work_address) > 0:
-					add_label("work", None, entry.work_address, type)
+			elif 'ADR' in type:
+				if 'WORK' in type and len(entry.work_address) > 0:
+					add_label("work", entry.work_address, type)
 					add_separator()
 				elif len(entry.address) > 0:
-					add_label("home", None, entry.address, type)
+					add_label("home", entry.address, type)
 					add_separator()
 			# birthday
-			elif type == 'bday':
+			elif type == 'BDAY':
 				try:
 					if entry.bday_year:
 						date = datetime.date(entry.bday_year, entry.bday_month, entry.bday_day).strftime("%d.%m.%Y")
-						add_label("birthday", "Birthday", date, type)
+						add_label("birthday", date, type)
 						add_separator()
 				except: pass
 
 		if len(entry.note_text) > 0:
 			rows = self.table.get_property('n-rows')
 			self.table.attach(gtk.HSeparator(), 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0, 0, 2)
-			add_label("Note:", None, entry.note_text, 'note')
+			add_label("Note:", entry.note_text, 'NOTE')
 
 		self.table.resize_children()
 		self.table.show_all()
@@ -261,18 +255,38 @@ class ContactWindow(gtk.Window):
 	#---------------
 	# event funtions
 	#---------------
-	def adjustments_updated(self, widget, hadjustment, vadjustment):
-		print "test"
-
 	def switch_mode(self, button, entry, widget):
+		def remove(num):
+			self.widgets.remove(self.widgets[i])
+			num += 1
+			caption.destroy()
+			field.destroy()
+			return num
+
 		state = button.get_active()
 		widget.set_sensitive(state)
-		for child in self.table.get_children():
-			if child.__class__== EntryLabel:
-				child.set_editable(state)
+		for i in range(len(self.widgets)-1,-1,-1):
+			caption, field, etype = self.widgets[i]
+			caption.set_editable(state)
+			if type(field) == EntryLabel:
+				field.set_editable(state)
 				# remove if empty
-				if child.get_text() == '': child.destroy() ; continue
-			elif child.__class__== AddressField:
-				child.set_editable(state)
+				if field.get_text() == '':
+					self.widgets.remove(self.widgets[i])
+					i = remove(i)
+					continue
+			elif type(field) == AddressField:
+				field.set_editable(state)
 				# remove if empty
-				if child.address == len(child.address) * ['']: child.destroy() ; continue
+				if field.address == len(field.address) * ['']:
+					i = remove(i)
+					continue
+			elif type(field) == gtk.TextView:
+				field.set_editable(state)
+				textbuffer = field.get_buffer()
+				text = textbuffer.get_text(textbuffer.get_start_iter(), textbuffer.get_end_iter()).strip()
+				# remove if empty
+				if text == '':
+					i = remove(i)
+					self.table.get_children()[0].destroy()
+					continue

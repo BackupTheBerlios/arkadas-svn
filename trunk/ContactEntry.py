@@ -19,10 +19,7 @@ import codecs, quopri, urllib
 foldmarks = ['\r\n\t', '\r\n ',  '\n\t', '\n ']
 foldmark = '\n '
 
-tel_options = ['Landline', 'ISDN', 'Mobile', 'Car', 'Video', 'Pager', 'Fax', 'Modem', 'BBS', 'PCS']
 tel_types = [ 'VOICE', 'ISDN', 'CELL', 'CAR', 'VIDEO', 'PAGER', 'FAX', 'MODEM', 'BBS', 'PCS' ]
-
-im_options = ['AIM', 'Gadu-Gadu', 'GroupWise', 'ICQ', 'IRC', 'Jabber','MSN', 'Napster', 'Yahoo', 'Zephyr']
 im_types = ['X-AIM', 'X-GADU-GADU', 'X-GROUPWISE', 'X-ICQ', 'X-IRC', 'X-JABBER', 'X-MSN', 'X-NAPSTER', 'X-YAHOO', 'X-ZEPHYR']
 
 class Entry:
@@ -295,7 +292,7 @@ class Entry:
 				pass
 
 			encoding, errors = self.get_encoding(
-					_("Data is not valid %s. Please select the file's encoding.") % encoding)
+					"Data is not valid %s. Please select the file's encoding." % encoding)
 
 		return encoding
 
