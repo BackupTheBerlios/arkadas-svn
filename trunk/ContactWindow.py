@@ -91,10 +91,19 @@ class ContactWindow(gtk.Window):
 		# help-functions
 		#---------------
 		def add_label(caption_text, text, type):
+			def remove_item(button, event):
+				self.widgets.remove([caption, field, urlbutton, type])
+				caption.destroy()
+				field.destroy()
+				if urlbutton is not None: urlbutton.destroy()
+				self.get_toplevel().window.set_cursor(None)
+
 			rows = self.table.get_property('n-rows')
+			urlbutton = None
 
 			# caption
 			caption = ComboLabel(caption_text, type)
+			caption.button.connect('button_press_event', remove_item)
 			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 4)
 
 			if 'ADR' in type:
@@ -108,7 +117,7 @@ class ContactWindow(gtk.Window):
 				field.set_wrap_mode(gtk.WRAP_WORD)
 			else:
 				# entrylabel
-				field = EntryLabel(text, "Empty")
+				field = EntryLabel(text, type)
 				field.set_editable(False)
 				# buttons
 				if 'EMAIL' in type or 'WEB' in type:
@@ -122,7 +131,7 @@ class ContactWindow(gtk.Window):
 					self.table.attach(urlbutton, 2, 3, rows, rows+1, gtk.FILL, gtk.FILL, 2)
 
 			self.table.attach(field, 1, 2, rows, rows+1, gtk.EXPAND|gtk.FILL, gtk.FILL)
-			self.widgets.append([caption, field, type])
+			self.widgets.append([caption, field, urlbutton, type])
 
 		def add_separator():
 			rows = self.table.get_property('n-rows')
@@ -188,7 +197,7 @@ class ContactWindow(gtk.Window):
 							caption += " fax"
 						elif entry.tel[i][1]== 'CELL':
 							caption = "mobile"
-						label = add_label(caption, entry.tel[i][0], type)
+						add_label(caption, entry.tel[i][0], entry.tel[i][1])
 					add_separator()
 			elif type == 'WORK_TEL':
 				if len(entry.work_tel) > 0:
@@ -198,7 +207,7 @@ class ContactWindow(gtk.Window):
 							caption += " fax"
 						elif entry.work_tel[i][1]== 'CELL':
 							caption += " mobile"
-						add_label(caption, entry.work_tel[i][0], type)
+						add_label(caption, entry.work_tel[i][0], "WORK_" + entry.tel[i][1])
 					add_separator()
 			# emails
 			elif type == 'EMAIL':
@@ -224,8 +233,7 @@ class ContactWindow(gtk.Window):
 			elif type == 'IM':
 				if len(entry.im) > 0:
 					for i in range(len(entry.im)):
-						text = "%s (%s)" % (entry.im[i][0], types[entry.im[i][1]])
-						add_label("home", text, entry.im[i][1])
+						add_label("home", entry.im[i][0], entry.im[i][1])
 					add_separator()
 			# address
 			elif 'ADR' in type:
@@ -256,37 +264,23 @@ class ContactWindow(gtk.Window):
 	# event funtions
 	#---------------
 	def switch_mode(self, button, entry, widget):
-		def remove(num):
-			self.widgets.remove(self.widgets[i])
-			num += 1
-			caption.destroy()
-			field.destroy()
-			return num
-
 		state = button.get_active()
 		widget.set_sensitive(state)
-		for i in range(len(self.widgets)-1,-1,-1):
-			caption, field, etype = self.widgets[i]
+		empty = []
+		for caption, field, urlbutton, etype in self.widgets:
 			caption.set_editable(state)
 			if type(field) == EntryLabel:
 				field.set_editable(state)
 				# remove if empty
-				if field.get_text() == '':
-					self.widgets.remove(self.widgets[i])
-					i = remove(i)
-					continue
+				if field.get_text() == '': empty.append([caption, field, urlbutton, etype]) ; continue
 			elif type(field) == AddressField:
 				field.set_editable(state)
-				# remove if empty
-				if field.address == len(field.address) * ['']:
-					i = remove(i)
-					continue
+				if field.address == len(field.address) * ['']: empty.append([caption, field, urlbutton, etype]) ; continue
 			elif type(field) == gtk.TextView:
 				field.set_editable(state)
-				textbuffer = field.get_buffer()
-				text = textbuffer.get_text(textbuffer.get_start_iter(), textbuffer.get_end_iter()).strip()
-				# remove if empty
-				if text == '':
-					i = remove(i)
-					self.table.get_children()[0].destroy()
-					continue
+		# remove empty fields
+		for caption, field, urlbutton, etype in empty:
+			self.widgets.remove([caption, field, urlbutton, etype])
+			caption.destroy()
+			field.destroy()
+			if urlbutton is not None: urlbutton.destroy()

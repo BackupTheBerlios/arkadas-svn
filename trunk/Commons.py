@@ -2,6 +2,10 @@ import gtk
 
 types = {}
 types = {
+	'BDAY':'Birthday',
+	'WEB':'Homepage',
+	'EMAIL':'Email',
+	'IM':'Username',
 	# address types
 	'ADR-0':'Postbox', 'ADR-1':'Extended',
 	'ADR-2':'Street', 'ADR-3':'City',
@@ -29,38 +33,55 @@ class ComboLabel(gtk.HBox):
 
 		self.set_no_show_all(True)
 
+		if 'X-' in type: text = types[type]
+
+
 		color = gtk.gdk.color_parse('white')
 		self.button = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), color)
-		self.pack_start(self.button, False)
-
+		if not type == 'NOTE': self.pack_start(self.button, False)
+		self.labelbox = gtk.EventBox()
+		self.labelbox.modify_bg(gtk.STATE_NORMAL, color)
 		self.label = gtk.Label()
 		self.label.set_markup("<b>%s</b>" % (text))
 		self.label.set_alignment(1,0.5)
-		self.label.show()
-		self.pack_start(self.label)
+		if type == 'NOTE': self.label.set_alignment(0,0.5)
+		self.labelbox.add(self.label)
+		self.labelbox.show_all()
+		self.pack_start(self.labelbox)
 
 		self.arrowbox = gtk.EventBox()
 		self.arrowbox.modify_bg(gtk.STATE_NORMAL, color)
-		self.arrowbox.connect("button-press-event", lambda w,e: self.menu.popup(None, None, None, e.button, e.time))
-		arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_OUT)
+		self.arrowbox.connect("button-press-event", lambda w,e: self.popup())
+		arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE)
 		arrow.show()
 		self.arrowbox.add(arrow)
-		if not type == 'NOTE': self.pack_start(self.arrowbox, False)
 
 		self.menu = gtk.Menu()
-		for text in ("home", "work", "mobile"):
-			item = gtk.MenuItem(text)
-			item.connect("activate", lambda m: self.set_text(m.get_child().get_text()))
-			self.menu.append(item)
-		self.menu.select_first(False)
+		# create type menus
+		if 'X-' in type:
+			for text in types.keys():
+				if 'X-' in text:
+					item = gtk.MenuItem(types[text])
+					item.connect("activate", lambda m: self.set_text(m.get_child().get_text()))
+					self.menu.append(item)
 		self.menu.show_all()
+
+		if not type == 'NOTE' and not type == 'BDAY':
+			self.pack_start(self.arrowbox, False)
+			self.labelbox.connect("button-press-event", lambda w,e: self.popup())
+			self.arrowbox.connect("button-press-event", lambda w,e: self.popup())
 
 		self.set_editable(False)
 		self.show()
 
+	def popup(self):
+		if self.label.get_property('sensitive'):
+			self.menu.popup(None, None, None, 1, 0)
+
 	def set_editable(self, editable):
 		self.button.set_property('visible',editable)
 		self.arrowbox.set_property('visible',editable)
+		self.label.set_sensitive(editable)
 
 	def set_text(self, text):
 		self.label.set_markup("<b>%s</b>" % (text))
@@ -69,8 +90,12 @@ class EntryLabel(gtk.Entry):
 	def __init__(self, text, empty_text=''):
 		gtk.Entry.__init__(self)
 
-		self.empty_text = empty_text
+		if 'X-' in empty_text: empty_text = 'IM'
+		self.empty_text = types.get(empty_text, empty_text)
+
 		self.set_text(text)
+		self.set_has_frame(False)
+		self.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse('black'))
 
 		self.connect("focus-in-event", self.focus_changed, True)
 		self.connect("focus-out-event", self.focus_changed, False)
@@ -83,16 +108,19 @@ class EntryLabel(gtk.Entry):
 
 	def set_editable(self, editable):
 		gtk.Entry.set_editable(self, editable)
-		gtk.Entry.set_has_frame(self, editable)
 		self.focus_changed(None, None, not editable)
 
 	def focus_changed(self, widget, event, focus):
 		if not self.empty_text == '':
 			text = self.get_text().strip()
 			if focus:
-				if text.startswith('('): self.set_text('')
+				if text == self.empty_text:
+					self.set_text('')
+					self.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse('black'))
 			else:
-				if text == '': self.set_text("(%s)" % self.empty_text)
+				if text == '':
+					self.set_text(self.empty_text)
+					self.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse('darkgray'))
 
 class AddressField(gtk.Table):
 	def __init__(self, address):
@@ -170,6 +198,10 @@ class ImageButton(gtk.EventBox):
 #----------
 # functions
 #----------
+def get_name_by_type(type):
+	if type == 'TEL':
+		pass
+
 def get_pixbuf_of_size(pixbuf, size, crop = False):
 	image_width = pixbuf.get_width()
 	image_height = pixbuf.get_height()

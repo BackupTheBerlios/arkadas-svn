@@ -40,7 +40,7 @@ class Entry:
 		s = s.replace('\\n', '\n')
 		s = s.replace('\\r', '\r')
 		s = s.replace('\\t', '\t')
-		return self.entities(s)
+		return s
 
 	def entities(self, s):
 		s = s.replace('<', '&lt;')
@@ -48,6 +48,7 @@ class Entry:
 		s = s.replace('&', '&amp;')
 		s = s.replace('"', '&quot;')
 		return s
+
 
 	def get_entries_from_dict(self):
 		"""Fill window entries from vcard dictionary"""
