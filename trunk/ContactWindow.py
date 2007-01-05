@@ -102,9 +102,11 @@ class ContactWindow(gtk.Window):
 			urlbutton = None
 
 			# caption
-			caption = ComboLabel(caption_text, type)
-			caption.button.connect('button_press_event', remove_item)
-			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 4)
+			caption = gtk.VBox()
+			captionlabel = ComboLabel(caption_text, type)
+			captionlabel.button.connect('button_press_event', remove_item)
+			caption.pack_start(captionlabel, False)
+			self.table.attach(caption, 0, 1, rows, rows+1, gtk.FILL, gtk.FILL, 4, 2)
 
 			if 'ADR' in type:
 				# address
@@ -138,17 +140,23 @@ class ContactWindow(gtk.Window):
 			seplabel = gtk.Label()
 			seplabel.set_size_request(-1,4)
 			self.table.attach(seplabel, 0, 3, rows, rows+1, gtk.EXPAND|gtk.FILL, 0)
+
+		def remove_photo():
+			photo.set_from_file('no-photo.png')
+			self.hasphoto = False
+			self.photoremove.hide()
+
 		#---------------
 
 		# contact photo
 		photohbox = gtk.HBox(False,2)
 		# contact photo (edit-mode)
 		photovbox = gtk.VBox()
-		photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.color)
-		photoremove.hide()
-		self.tooltips.set_tip(photoremove,"Click to remove image")
-		#photoremove.connect('button_press_event', copy_to_clipboard, text)
-		photovbox.pack_start(photoremove, False)
+		self.photoremove = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), self.color)
+		self.photoremove.hide()
+		self.tooltips.set_tip(self.photoremove,"Click to remove image")
+		self.photoremove.connect('button_press_event', lambda w,e: remove_photo())
+		photovbox.pack_start(self.photoremove, False)
 		photohbox.pack_start(photovbox, False)
 
 		viewport = gtk.Viewport()
@@ -156,10 +164,10 @@ class ContactWindow(gtk.Window):
 		photo = gtk.Image()
 		if entry.pixbuf:
 			photo.set_from_pixbuf(get_pixbuf_of_size(entry.pixbuf,64, False))
-			hasphoto = True
+			self.hasphoto = True
 		else:
 			photo.set_from_file('no-photo.png')
-			hasphoto = False
+			self.hasphoto = False
 		photo.set_padding(6, 6)
 		photo.set_alignment(1, 0.5)
 		photo.set_flags('can-focus')
@@ -207,7 +215,7 @@ class ContactWindow(gtk.Window):
 							caption += " fax"
 						elif entry.work_tel[i][1]== 'CELL':
 							caption += " mobile"
-						add_label(caption, entry.work_tel[i][0], "WORK_" + entry.tel[i][1])
+						add_label(caption, entry.work_tel[i][0], "WORK_" + entry.work_tel[i][1])
 					add_separator()
 			# emails
 			elif type == 'EMAIL':
@@ -266,9 +274,12 @@ class ContactWindow(gtk.Window):
 	def switch_mode(self, button, entry, widget):
 		state = button.get_active()
 		widget.set_sensitive(state)
+		if self.hasphoto: self.photoremove.set_property('visible', state)
+		else: self.photoremove.hide()
+
 		empty = []
 		for caption, field, urlbutton, etype in self.widgets:
-			caption.set_editable(state)
+			caption.get_children()[0].set_editable(state)
 			if type(field) == EntryLabel:
 				field.set_editable(state)
 				# remove if empty

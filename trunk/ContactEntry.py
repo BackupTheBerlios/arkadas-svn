@@ -40,7 +40,7 @@ class Entry:
 		s = s.replace('\\n', '\n')
 		s = s.replace('\\r', '\r')
 		s = s.replace('\\t', '\t')
-		return s
+		return self.entities(s)
 
 	def entities(self, s):
 		s = s.replace('<', '&lt;')
