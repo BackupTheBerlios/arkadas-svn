@@ -65,15 +65,15 @@ class MainWindow(gtk.Window):
 
 	def build_interface(self):
 		actions = (
-			('NewContact', gtk.STOCK_NEW, None, None, "Create a new contact", None),
-			('ShowContact', gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
-			('EditContact', gtk.STOCK_EDIT, None, None, "Edit the selected contact", None),
-			('DeleteContact', gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
-			('Preferences', gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
-			('About', gtk.STOCK_ABOUT, None, None, "About the application", self.about),
-			('CopyName', gtk.STOCK_COPY, "_Copy Fullname", None, None, None),
-			('CopyEmail', None, "Copy E_mail", None, None, None),
-			('CopyNumber', None, "Copy N_umber", None, None, None),
+			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", None),
+			("ShowContact", gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
+			("EditContact", gtk.STOCK_EDIT, None, None, "Edit the selected contact", None),
+			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
+			("Preferences", gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
+			("About", gtk.STOCK_ABOUT, None, None, "About the application", self.about),
+			("CopyName", gtk.STOCK_COPY, "_Copy Fullname", None, None, None),
+			("CopyEmail", None, "Copy E_mail", None, None, None),
+			("CopyNumber", None, "Copy N_umber", None, None, None),
 			)
 
 		uiDescription = """
@@ -107,7 +107,7 @@ class MainWindow(gtk.Window):
 		self.uiManager.add_ui_from_string(uiDescription)
 		self.add_accel_group(self.uiManager.get_accel_group())
 
-		actionGroup = gtk.ActionGroup('Actions')
+		actionGroup = gtk.ActionGroup("Actions")
 		actionGroup.add_actions(actions)
 		self.uiManager.insert_action_group(actionGroup, 0)
 
@@ -117,7 +117,7 @@ class MainWindow(gtk.Window):
 		self.add(self.vbox)
 
 		# toolbar
-		self.toolbar = self.uiManager.get_widget('/Toolbar')
+		self.toolbar = self.uiManager.get_widget("/Toolbar")
 		self.vbox.pack_start(self.toolbar,False,False)
 
 		scrolledwindow = gtk.ScrolledWindow()
@@ -150,10 +150,10 @@ class MainWindow(gtk.Window):
 		self.contactList.append_column(column)
 
 		# events
-		self.contactList.connect('row_activated', self.contactList_click)
-		self.contactList.connect('button_press_event', self.contactList_press)
-		self.contactList.connect('popup_menu', self.contactList_popup_menu)
-		self.contactList.get_selection().connect('changed', self.contactList_change)
+		self.contactList.connect("row_activated", self.contactList_click)
+		self.contactList.connect("button_press_event", self.contactList_press)
+		self.contactList.connect("popup_menu", self.contactList_popup_menu)
+		self.contactList.get_selection().connect("changed", self.contactList_change)
 		self.contactList_change(self.contactList.get_selection())
 
 		self.vbox.show_all()
@@ -193,7 +193,7 @@ class MainWindow(gtk.Window):
 			dialoglabel.set_markup(text)
 			dialoglabel.set_line_wrap(True)
 			dialoghbox.pack_start(dialoglabel)
-			dialog.connect('response',self.deletedialog_response, entry)
+			dialog.connect("response",self.deletedialog_response, entry)
 			dialog.show_all()
 
 	def deletedialog_response(self, dialog, response_id, entry):
@@ -206,30 +206,30 @@ class MainWindow(gtk.Window):
 		dialog.destroy()
 
 	def contactList_click(self, treeview, path, column):
-		self.showbutton_click(self.uiManager.get_widget('/Toolbar/ShowContact'))
+		self.showbutton_click(self.uiManager.get_widget("/Toolbar/ShowContact"))
 
 	def contactList_press(self, widget, event):
 		if event.button == 3:
-			self.uiManager.get_widget('/Itemmenu').popup(None, None, None, event.button, event.time)
+			self.uiManager.get_widget("/Itemmenu").popup(None, None, None, event.button, event.time)
 
 	def contactList_popup_menu(self, widget):
-		self.uiManager.get_widget('/Itemmenu').popup(None, None, None, 3, 0)
+		self.uiManager.get_widget("/Itemmenu").popup(None, None, None, 3, 0)
 
 	def contactList_change(self, selection):
 		if selection.count_selected_rows() > 0:
-			self.uiManager.get_widget('/Itemmenu/ShowContact').show()
-			self.uiManager.get_widget('/Itemmenu/EditContact').show()
-			self.uiManager.get_widget('/Itemmenu/DeleteContact').show()
-			self.uiManager.get_widget('/Itemmenu/CopyName').show()
-			self.uiManager.get_widget('/Itemmenu/CopyEmail').show()
-			self.uiManager.get_widget('/Itemmenu/CopyNumber').show()
+			self.uiManager.get_widget("/Itemmenu/ShowContact").show()
+			self.uiManager.get_widget("/Itemmenu/EditContact").show()
+			self.uiManager.get_widget("/Itemmenu/DeleteContact").show()
+			self.uiManager.get_widget("/Itemmenu/CopyName").show()
+			self.uiManager.get_widget("/Itemmenu/CopyEmail").show()
+			self.uiManager.get_widget("/Itemmenu/CopyNumber").show()
 		else:
-			self.uiManager.get_widget('/Itemmenu/ShowContact').hide()
-			self.uiManager.get_widget('/Itemmenu/EditContact').hide()
-			self.uiManager.get_widget('/Itemmenu/DeleteContact').hide()
-			self.uiManager.get_widget('/Itemmenu/CopyName').hide()
-			self.uiManager.get_widget('/Itemmenu/CopyEmail').hide()
-			self.uiManager.get_widget('/Itemmenu/CopyNumber').hide()
+			self.uiManager.get_widget("/Itemmenu/ShowContact").hide()
+			self.uiManager.get_widget("/Itemmenu/EditContact").hide()
+			self.uiManager.get_widget("/Itemmenu/DeleteContact").hide()
+			self.uiManager.get_widget("/Itemmenu/CopyName").hide()
+			self.uiManager.get_widget("/Itemmenu/CopyEmail").hide()
+			self.uiManager.get_widget("/Itemmenu/CopyNumber").hide()
 
 	def about(self, widget):
 		def close_about(event, data=None):
@@ -245,18 +245,18 @@ class MainWindow(gtk.Window):
 			aboutdialog.set_modal(True)
 		except:
 			pass
-		aboutdialog.set_name('Arkadas')
+		aboutdialog.set_name("Arkadas")
 		aboutdialog.set_version(__version__)
-		aboutdialog.set_comments('A lightweight GTK+ Contact-Manager based on vCards.')
+		aboutdialog.set_comments("A lightweight GTK+ Contact-Manager based on vCards.")
 		aboutdialog.set_license(__license__)
-		aboutdialog.set_authors(['Paul Johnson <thrillerator@googlemail.com>','Erdem Cakir <deejayrdm@gmail.com>'])
-		#aboutdialog.set_translator_credits('de - Paul Johnson <thrillerator@googlemail.com>')
+		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <deejayrdm@gmail.com>"])
+		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
 		gtk.about_dialog_set_url_hook(show_website, "http://arkadas.berlios.de")
 		aboutdialog.set_website_label("http://arkadas.berlios.de")
-		large_icon = gtk.gdk.pixbuf_new_from_file('arkadas.png')
+		large_icon = gtk.gdk.pixbuf_new_from_file("arkadas.png")
 		aboutdialog.set_logo(large_icon)
-		aboutdialog.connect('response', close_about)
-		aboutdialog.connect('delete_event', close_about)
+		aboutdialog.connect("response", close_about)
+		aboutdialog.connect("delete_event", close_about)
 		aboutdialog.show_all()
 
 #--------------
@@ -279,7 +279,7 @@ def load_contacts(path, model):
 			markup = "<big><b>%s</b></big>" % (entry.fullname)
 			markup_small = "\n<small><b>%s: </b>%s</small>"
 
-			if entry.title != '':
+			if entry.title != "":
 				markup += " <small>(%s)</small>" % (entry.title)
 
 			if len(entry.email) > 0:
@@ -289,16 +289,16 @@ def load_contacts(path, model):
 
 			if len(entry.tel) > 0:
 				caption = "home"
-				if entry.tel[0][1]== 'FAX':
+				if entry.tel[0][1]== "FAX":
 					caption += " fax"
-				elif entry.tel[0][1]== 'CELL':
+				elif entry.tel[0][1]== "CELL":
 					caption = "mobile"
 				markup += markup_small % (caption, entry.tel[0][0])
 			elif len(entry.work_tel) > 0:
 				caption = "work"
-				if entry.work_tel[0][1]== 'FAX':
+				if entry.work_tel[0][1]== "FAX":
 					caption += " fax"
-				elif entry.work_tel[0][1]== 'CELL':
+				elif entry.work_tel[0][1]== "CELL":
 					caption += " mobile"
 				markup += markup_small % (caption, entry.work_tel[0][0])
 
@@ -331,12 +331,12 @@ def get_image_from_entry(model, entry):
 # weird sort stuff
 def sort_contacts(model, iter1, iter2, data):
 	entry1 = model[iter1][2] ; entry2 = model[iter2][2]
-	f1 = '' ; f2 = ''
+	f1 = "" ; f2 = ""
 	if entry1 and entry2:
 		for i in (0,4,3,1,2):
-			f1 += entry1.name[i].strip() + ' '
-			f2 += entry2.name[i].strip() + ' '
-		return cmp(f1.strip().replace('  ',' '),f2.strip().replace('  ',' '))
+			f1 += entry1.name[i].strip() + " "
+			f2 += entry2.name[i].strip() + " "
+		return cmp(f1.strip().replace("  "," "),f2.strip().replace("  "," "))
 	return 0
 
 def search_contacts(model, column, key, iter):
