@@ -56,8 +56,8 @@ class ContactWindow(gtk.Window):
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
 		self.vsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_VERTICAL)
 
-		self.table = gtk.VBox(False, 6)
-		self.table.set_border_width(6)
+		self.table = gtk.VBox(False, 10)
+		self.table.set_border_width(10)
 		scrolledwindow.add_with_viewport(self.table)
 		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.color)
 		
@@ -116,7 +116,7 @@ class ContactWindow(gtk.Window):
 
 			if "ADR" in type:
 				# address
-				field = AddressField(text)
+				field = AddressField(text, type)
 			elif type == "NOTE":
 				# multiline label
 				textbuffer = gtk.TextBuffer()
@@ -129,8 +129,8 @@ class ContactWindow(gtk.Window):
 				field = gtk.TextView(textbuffer)
 				field.set_wrap_mode(gtk.WRAP_WORD)
 			else:
-				# entrylabel
-				field = EntryLabel(text, type)
+				# LabelEntry
+				field = LabelEntry(text, type)
 				field.set_editable(False)
 				self.vsizegroup.add_widget(field)
 
@@ -183,7 +183,8 @@ class ContactWindow(gtk.Window):
 			# birthday
 			elif type == "BDAY":
 				self.table.pack_start(self.bdaybox, False)
-
+				
+		self.table.pack_start(gtk.Label())
 		self.table.pack_start(self.notebox, False)
 		
 		# contact photo
@@ -200,20 +201,29 @@ class ContactWindow(gtk.Window):
 		self.photohbox.pack_start(self.photo,False)
 		
 		# big title
-		text = "<span size=\"x-large\"><b>%s</b></span>" % (entry.fullname)
-
+		titlevbox = gtk.VBox()
+		self.photohbox.pack_start(titlevbox, True, True, 2)
+		
+		fullname = gtk.Label()
+		text = "<span size=\"x-large\"><b>%s</b></span>" % entry.fullname
 		if len(entry.nick) > 0:
 			text += " (<big>%s</big>)" % (entry.nick)
+		fullname.set_markup(text)
+		fullname.set_alignment(0,0)
+		fullname.set_selectable(True)
+		titlevbox.pack_start(fullname)
+		
+		text = ""
+		org = gtk.Label()
 		if len(entry.title) > 0:
-			text += "\n" + entry.title
+			text += entry.title
 		if len(entry.org) > 0:
 			text += "\n" + entry.org
+		org.set_markup(text)
+		org.set_alignment(0,0)
+		org.set_selectable(True)
+		titlevbox.pack_start(org)
 
-		title = gtk.Label()
-		title.set_markup(text)
-		title.set_alignment(0,0)
-		title.set_selectable(True)
-		self.photohbox.pack_start(title, True, True, 6)
 		self.photohbox.show_all()
 
 		# add widgets
@@ -249,7 +259,7 @@ class ContactWindow(gtk.Window):
 		try:
 			if entry.bday_year:
 				date = datetime.date(entry.bday_year, entry.bday_month, entry.bday_day).strftime("%d.%m.%Y")
-				add_label(self.bdaybox, "birthday", date, type)
+				add_label(self.bdaybox, date, "BDAY")
 		except: pass
 
 		self.notebox.add(gtk.HSeparator())
@@ -273,7 +283,7 @@ class ContactWindow(gtk.Window):
 					if type(hbox) == gtk.HBox:
 						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
 						caption.set_editable(state)
-						if type(field) == EntryLabel:
+						if type(field) == LabelEntry:
 							field.set_editable(state)
 							# remove if empty
 							if field.get_text() == "": hbox.destroy() ; continue

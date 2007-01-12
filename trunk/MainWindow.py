@@ -65,9 +65,9 @@ class MainWindow(gtk.Window):
 
 	def build_interface(self):
 		actions = (
-			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", None),
+			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", self.newbutton_click),
 			("ShowContact", gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
-			("EditContact", gtk.STOCK_EDIT, None, None, "Edit the selected contact", None),
+			("EditContact", gtk.STOCK_EDIT, None, None, "Edit the selected contact", self.editbutton_click),
 			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
 			("Preferences", gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
 			("About", gtk.STOCK_ABOUT, None, None, "About the application", self.about),
@@ -164,14 +164,29 @@ class MainWindow(gtk.Window):
 	#---------------
 	# event funtions
 	#---------------
-	def showbutton_click(self, widget):
+	def newbutton_click(self, widget):
+		pass
+
+	def showbutton_click(self, widget, edit = False):
 		if self.contactList.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactList.get_selection().get_selected()
 			entry = model[iter][2]
-			entrywindow = ContactWindow.ContactWindow(self, entry)
+			entrywindow = ContactWindow.ContactWindow(self, entry, edit)
 			entrywindow.show_all()
+			
+	def editbutton_click(self, widget):
+		self.showbutton_click(widget, True)
 
 	def deletebutton_click(self, widget):
+		def dialog_response(dialog, response_id, entry):
+			if response_id == gtk.RESPONSE_OK:
+				try:
+					 os.remove(entry.filename)
+					 self.contactData.remove(entry.iter)
+				except:
+					pass
+			dialog.destroy()
+			
 		if self.contactList.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactList.get_selection().get_selected()
 			entry = model[iter][2]
@@ -193,17 +208,8 @@ class MainWindow(gtk.Window):
 			dialoglabel.set_markup(text)
 			dialoglabel.set_line_wrap(True)
 			dialoghbox.pack_start(dialoglabel)
-			dialog.connect("response",self.deletedialog_response, entry)
+			dialog.connect("response",dialog_response, entry)
 			dialog.show_all()
-
-	def deletedialog_response(self, dialog, response_id, entry):
-		if response_id == gtk.RESPONSE_OK:
-			try:
-				 os.remove(entry.filename)
-				 self.contactData.remove(entry.iter)
-			except:
-				pass
-		dialog.destroy()
 
 	def contactList_click(self, treeview, path, column):
 		self.showbutton_click(self.uiManager.get_widget("/Toolbar/ShowContact"))

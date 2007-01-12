@@ -1,9 +1,10 @@
 import gtk
 
-types = {}
 types = {
-	"HOME":"home", "WORK":"work",
-	"BDAY":"Birthday", "WEB":"Homepage",
+	"HOME":"home", "HOME_CAP":"Home",
+	"WORK":"work", "WORK_CAP":"Work",
+	"BDAY":"Birthday", "BDAY_CAP":"birthday", 
+	"WEB":"Homepage", "WEB_CAP":"page",
 	"EMAIL":"Email", "IM":"Username",
 	"NOTE":"Note",
 	# address types
@@ -12,9 +13,10 @@ types = {
 	"ADR-4":"State", "ADR-5":"Zip", "ADR-6":"Country",
 	# tel types
 	"VOICE":"Landline", "ISDN":"ISDN",
-	"CELL":"Mobile", "CAR":"Car",
-	"VIDEO":"Video", "PAGER":"Pager",
-	"FAX":"Fax", "MODEM":"Modem",
+	"CELL":"Mobile", "CELL_CAP":"mobile",
+	"FAX":"Fax", "FAX_CAP":"fax",
+	"CAR":"Car", "VIDEO":"Video",
+	"PAGER":"Pager", "MODEM":"Modem",
 	"BBS":"BBS", "PCS":"PCS",
 	# im types
 	"X-AIM":"AIM", "X-GADU-GADU":"Gadu-Gadu",
@@ -23,7 +25,8 @@ types = {
 	"X-MSN":"MSN", "X-NAPSTER":"Napster",
 	"X-YAHOO":"Yahoo", "X-ZEPHYR":"Zephyr",
 	}
-
+	
+tel_types = ("VOICE", "ISDN", "CELL", "CAR", "VIDEO", "PAGER", "FAX", "MODEM", "BBS", "PCS")
 #--------
 # widgets
 #--------
@@ -32,23 +35,39 @@ class ComboLabel(gtk.HBox):
 		gtk.HBox.__init__(self, False, 2)
 
 		self.set_no_show_all(True)
-
-		text = types["HOME"]
-		if "X-" in type: text = types[type]
-		if "WORK" in type: text = types["WORK"]
-		if type == "NOTE": text = types["NOTE"] + ":"
-
+		
+		menuitems = []
+		
+		text, menutype = self.text_by_type(type)
+		
 		self.menu = gtk.Menu()
 		# create type menus
-		#if "X-" in type:
-		#	for text in types.keys():
-		#		if "X-" in text:
-		#			item = gtk.MenuItem(types[text])
-		#			item.connect("activate", lambda m: self.set_text(m.get_child().get_text()))
-		#			self.menu.append(item)
-		#self.menu.show_all()
-
-		self.etype = type
+		if menutype == "":
+			menuitems = [types["HOME_CAP"], types["WORK_CAP"]]
+		elif menutype == "TEL":
+			menuitems = [types["HOME_CAP"], types["WORK_CAP"]]
+			submenu = gtk.Menu()
+			submenu2 = gtk.Menu()
+			for tel in tel_types:
+				menuitem = gtk.MenuItem(types[tel])
+				menuitem2 = gtk.MenuItem(types[tel])
+				menuitem.connect("activate", self.menuitem_click, type, False)
+				menuitem2.connect("activate", self.menuitem_click, type, False, True)
+				submenu.append(menuitem)
+				submenu2.append(menuitem2)	
+		elif menutype == "X-":
+			for text in types.keys():
+				if "X-" in text:
+					menuitems.append(types[text])
+					
+		for itemtext in menuitems:
+			menuitem = gtk.MenuItem(itemtext)
+			if menutype == "TEL" and itemtext == types["HOME_CAP"]: menuitem.set_submenu(submenu)
+			elif menutype == "TEL": menuitem.set_submenu(submenu2)
+			if not menutype == "TEL": menuitem.connect("activate", self.menuitem_click, type, True)
+			self.menu.append(menuitem)	
+				
+		self.menu.show_all()
 		
 		color = gtk.gdk.color_parse("white")
 		self.button = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), color)
@@ -64,20 +83,20 @@ class ComboLabel(gtk.HBox):
 
 		self.arrowbox = gtk.EventBox()
 		self.arrowbox.modify_bg(gtk.STATE_NORMAL, color)
-		self.arrowbox.connect("button-press-event", lambda w,e: self.popup())
+		self.arrowbox.connect("button-press-event", self.popup)
 		arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE)
 		arrow.show()
 		self.arrowbox.add(arrow)
 
 		if not type == "NOTE" and not type == "BDAY":
 			self.pack_start(self.arrowbox, False)
-			self.labelbox.connect("button-press-event", lambda w,e: self.popup())
-			self.arrowbox.connect("button-press-event", lambda w,e: self.popup())
+			self.labelbox.connect("button-press-event", self.popup)
+			self.arrowbox.connect("button-press-event", self.popup)
 
 		self.set_editable(False)
 		self.show()
 
-	def popup(self):
+	def popup(self, *args):
 		if self.label.get_property("sensitive"):
 			self.menu.popup(None, None, None, 1, 0)
 
@@ -89,11 +108,45 @@ class ComboLabel(gtk.HBox):
 	def set_text(self, text):
 		self.label.set_markup("<b>%s</b>" % (text))
 	
+	def get_text(self):
+		return self.label.get_text()
+		
 	def get_type(self):
 		return self.etype
 
-class EntryLabel(gtk.HBox):
-	def __init__(self, text, empty_text=""):
+	def menuitem_click(self, item, type, main=False, work=False):
+		itemtext = item.get_child().get_text()
+		if main and itemtext == types["WORK_CAP"]:
+			type = "WORK_" + type
+		elif not main:
+			for key, value in types.iteritems():
+				if value == itemtext:
+					type = key
+					break
+			if work: type = "WORK_" + type
+		text, menutype = self.text_by_type(type)
+		self.set_text(text)
+		
+	def text_by_type(self, type):
+		self.etype = type
+		menutype = ""
+		text = types["HOME"]
+		if "WORK" in type: text = types["WORK"]
+		if "WEB" in type: text += " " + types["WEB_CAP"]
+		elif "X-" in type: text = types[type] ; menutype = "IM"
+		elif type == "BDAY": text = types["BDAY_CAP"]
+		elif type == "NOTE": text = types["NOTE"] + ":"
+		else:
+			for tel in tel_types:
+				if tel in type: 
+					menutype = "TEL"
+					if tel == "FAX": text += " " + types["FAX_CAP"]
+					elif tel == "CELL": text = types["CELL_CAP"]
+					elif type == "WORK_CELL": text += " " + types["CELL_CAP"]
+		return text, menutype
+		
+class LabelEntry(gtk.HBox):
+	def __init__(self, text, type, empty_text="Empty"):
 		gtk.HBox.__init__(self, False)
 
 		self.set_no_show_all(True)
@@ -118,11 +171,11 @@ class EntryLabel(gtk.HBox):
 		self.entry.connect("focus-in-event", self.focus_changed, True)
 		self.entry.connect("focus-out-event", self.focus_changed, False)
 
-		if "EMAIL" in empty_text or "WEB" in empty_text:
-			if "EMAIL" in empty_text:
+		if "EMAIL" in type or "WEB" in type:
+			if "EMAIL" in type:
 				self.urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
 				self.urlbutton.connect("button_press_event", lambda w,e: browser_load("mailto:" + text, self.get_toplevel()))
-			elif "WEB" in empty_text:
+			elif "WEB" in type:
 				self.urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
 				self.urlbutton.connect("button_press_event", lambda w,e: browser_load(text, self.get_toplevel()))
 			self.labelbox.pack_end(self.urlbutton, False)
@@ -134,8 +187,9 @@ class EntryLabel(gtk.HBox):
 
 		self.set_text(text)
 
-		if "X-" in empty_text: empty_text = "IM"
-		self.empty_text = types.get(empty_text, empty_text)
+		type = type.replace("WORK_", "")
+		if "X-" in type: empty_text = "IM"
+		self.empty_text = types.get(type, empty_text)
 
 	def set_text(self, text):
 		self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
@@ -143,9 +197,9 @@ class EntryLabel(gtk.HBox):
 
 	def get_text(self):
 		text = self.entry.get_text()
-		self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
+		self.set_text(text)
 		return text
-
+	
 	def set_editable(self, editable):
 		self.labelbox.set_property("visible", not editable)
 		self.entry.set_property("visible", editable)
@@ -164,11 +218,12 @@ class EntryLabel(gtk.HBox):
 					self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("darkgray"))
 
 class AddressField(gtk.Table):
-	def __init__(self, address):
+	def __init__(self, address, type):
 		gtk.Table.__init__(self, 4, 2)
 
 		self.set_no_show_all(True)
 
+		self.etype = type
 		self.address = address
 		self.widgetlist = 7 * [None]
 
@@ -179,7 +234,7 @@ class AddressField(gtk.Table):
 
 	def build_interface(self):
 		for i in range(len(self.address)):
-			widget = EntryLabel(self.address[i], types["ADR-" + str(i)])
+			widget = LabelEntry(self.address[i], "", types["ADR-" + str(i)])
 			widget.set_editable(False)
 			if i == 3 or i == 4 or i == 5: widget.entry.set_width_chars(len(widget.get_text()))
 			widget.entry.connect("changed", self.changed, widget)
@@ -212,6 +267,12 @@ class AddressField(gtk.Table):
 		if num == 0: text = text.replace("Postbox ", "")
 		if num == 3 or num == 4 or num == 5: widget.set_width_chars(len(text))
 		self.address[num] = text.strip()
+
+	def set_type(self, type):
+		self.etype = type
+	
+	def get_type(self):
+		return self.etype
 
 class EventVBox(gtk.VBox):
 	def __init__(self):
