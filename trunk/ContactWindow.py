@@ -14,7 +14,7 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-import datetime
+import datetime, base64, urllib
 import gtk, gobject, pango
 # local
 from Commons import *
@@ -22,76 +22,45 @@ import ContactEntry
 
 order = ["TEL", "EMAIL", "WEB", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "WORK_WEB", "WORK_ADR"]
 
-class ContactWindow(gtk.Window):
+class ContactWindow(gtk.VBox):
 
-	def __init__(self, parent, entry, edit_mode = False):
-		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+	def __init__(self, parent):
+		gtk.VBox.__init__(self, False, 6)
 
-		if len(entry.fullname) > 0:
-			self.set_title(entry.fullname)
-		else:
-			self.set_title("Contact")
+		self.tooltips = parent.tooltips
 
-		self.set_resizable(True)
-		self.set_default_size(-1,400)
-
-		if entry.pixbuf != None:
-			self.set_icon(get_pixbuf_of_size(entry.pixbuf,128))
-
-		self.tooltips = gtk.Tooltips()
-
-		self.widgets = []
-
+		self.table = None
 		self.color = gtk.gdk.color_parse("white")
 
-		self.vbox = gtk.VBox(False, 6)
-		self.vbox.set_border_width(6)
-		self.add(self.vbox)
-
 		# display
-		scrolledwindow = gtk.ScrolledWindow()
-		scrolledwindow.set_policy(gtk.POLICY_NEVER,gtk.POLICY_AUTOMATIC)
-		self.vbox.pack_start(scrolledwindow)
+		self.scrolledwindow = gtk.ScrolledWindow()
+		self.scrolledwindow.set_policy(gtk.POLICY_NEVER,gtk.POLICY_AUTOMATIC)
+		self.pack_start(self.scrolledwindow)
 
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
 		self.vsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_VERTICAL)
-
-		self.table = gtk.VBox(False, 10)
-		self.table.set_border_width(10)
-		scrolledwindow.add_with_viewport(self.table)
-		scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.color)
 		
 		# buttons
 		self.buttonbox = gtk.HBox(False, 6)
-		self.vbox.pack_end(self.buttonbox, False)
+		self.pack_end(self.buttonbox, False)
 
-		addButton = gtk.Button("",gtk.STOCK_ADD)
-		addButton.set_no_show_all(True)
-		addButton.show()
-		addButton.get_child().get_child().get_children()[1].hide()
-		self.buttonbox.pack_start(addButton, False)
+		self.addButton = gtk.Button("",gtk.STOCK_ADD)
+		self.addButton.set_sensitive(False)
+		self.addButton.set_no_show_all(True)
+		self.addButton.show()
+		self.addButton.get_child().get_child().get_children()[1].hide()
+		self.buttonbox.pack_start(self.addButton, False)
 
 		self.buttonbox.pack_start(gtk.Label())
 
-		editButton = gtk.ToggleButton(gtk.STOCK_EDIT)
-		editButton.set_use_stock(True)
-		editButton.set_no_show_all(True)
-		editButton.show()
-		editButton.get_child().get_child().get_children()[1].hide()
-		editButton.connect("toggled", self.switch_mode, entry, addButton)
-		self.buttonbox.pack_start(editButton, False)
+		self.editButton = gtk.ToggleButton(gtk.STOCK_EDIT)
+		self.editButton.set_use_stock(True)
+		self.editButton.set_no_show_all(True)
+		self.editButton.show()
+		self.editButton.get_child().get_child().get_children()[1].hide()
+		self.buttonbox.pack_start(self.editButton, False)
 
-		closeButton = gtk.Button("",gtk.STOCK_CLOSE)
-		closeButton.connect_object("clicked", gtk.Widget.destroy, self)
-		self.buttonbox.pack_start(closeButton, False)
-
-		# create widgets
-		self.build_interface(entry)
-
-		addButton.set_sensitive(edit_mode)
-		editButton.set_active(edit_mode)
-
-	def build_interface(self, entry):
+	def build_interface(self, entry, edit_mode=False):
 		# help-functions
 		#---------------
 		def add_label(box, text, type):
@@ -102,7 +71,7 @@ class ContactWindow(gtk.Window):
 					self.widgets.remove(hbox)
 					hbox.destroy()
 					self.get_toplevel().window.set_cursor(None)
-					
+			
 			hbox = gtk.HBox(False, 4)
 
 			# caption
@@ -136,9 +105,18 @@ class ContactWindow(gtk.Window):
 
 			hbox.pack_start(field)
 			box.add(hbox)
-			if not type == "NOTE": self.widgets.append(hbox)
 			
 		#---------------
+		self.addButton.set_sensitive(edit_mode)
+		self.editButton.set_active(edit_mode)
+		self.editButton.connect("toggled", self.switch_mode, entry)
+		
+		if self.table is not None: self.table.destroy()
+		self.table = gtk.VBox(False, 10)
+		self.table.set_border_width(10)
+		self.table.set_no_show_all(True)
+		self.scrolledwindow.add_with_viewport(self.table)
+		self.scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.color)
 		
 		self.photohbox = gtk.HBox(False, 2)
 		self.emailbox = EventVBox()
@@ -192,8 +170,29 @@ class ContactWindow(gtk.Window):
 			pixbuf = get_pixbuf_of_size(entry.pixbuf,64, False)
 			self.hasphoto = True
 		else:
-			pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
-			self.hasphoto = False
+			if entry.photo:
+				if entry.photo_type == "URI":
+					try:
+						url = urllib.urlopen(entry.photo)
+						data = url.read()
+						url.close()
+					except:
+						pass
+				elif entry.photo_type == "B64":
+					data = base64.decodestring(entry.photo)
+				try:
+					loader = gtk.gdk.PixbufLoader()
+					loader.write(data)
+					loader.close()
+					entry.pixbuf = loader.get_pixbuf()
+				except:
+					pass
+				pixbuf = get_pixbuf_of_size(entry.pixbuf,64, False)
+				self.hasphoto = True
+			else:
+				pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
+				self.hasphoto = False
+		
 		self.photo = ImageButton(pixbuf, self.color, True)
 		#self.photo.connect("button_press_event", remove_photo)
 		#self.tooltips.set_tip(self.photo,"Click to remove image")		
@@ -266,17 +265,15 @@ class ContactWindow(gtk.Window):
 		self.notebox.set_spacing(4)
 		add_label(self.notebox, entry.note_text, "NOTE")
 
-		self.table.set_no_show_all(True)
 		self.table.show()
 
 	#---------------
 	# event funtions
 	#---------------
-	def switch_mode(self, button, entry, widget):
+	def switch_mode(self, button, entry):
 		state = button.get_active()
-		widget.set_sensitive(state)
+		self.addButton.set_sensitive(state)
 
-		empty = []
 		for child in self.table.get_children():
 			if type(child) == EventVBox:
 				for hbox in child.get_children():

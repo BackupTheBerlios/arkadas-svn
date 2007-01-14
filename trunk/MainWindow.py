@@ -34,7 +34,7 @@ along with Arkadas; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import sys, os, urllib, base64
+import sys, os
 import gtk, gobject, pango
 # local
 from Commons import *
@@ -42,10 +42,10 @@ import ContactEntry, ContactWindow
 
 class MainWindow(gtk.Window):
 
-	def __init__(self, width = 300, height = 400):
+	def __init__(self, width = 200, height = 400):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 
-		self.set_title("Contactlist")
+		self.set_title("Address Book")
 		self.set_default_size( width , height )
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_geometry_hints(self, width, height )
@@ -66,8 +66,6 @@ class MainWindow(gtk.Window):
 	def build_interface(self):
 		actions = (
 			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", self.newbutton_click),
-			("ShowContact", gtk.STOCK_OPEN, "Sho_w", None, "Show the selected contact", self.showbutton_click),
-			("EditContact", gtk.STOCK_EDIT, None, None, "Edit the selected contact", self.editbutton_click),
 			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
 			("Preferences", gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
 			("About", gtk.STOCK_ABOUT, None, None, "About the application", self.about),
@@ -80,15 +78,11 @@ class MainWindow(gtk.Window):
 			<ui>
 			 <toolbar name="Toolbar">
 			  <toolitem action="NewContact"/>
-			  <toolitem action="ShowContact"/>
-			  <toolitem action="EditContact"/>
 			  <toolitem action="DeleteContact"/>
 			  <separator name="ST1"/>
 			  <toolitem action="Preferences"/>
 			 </toolbar>
 			 <popup name="Itemmenu">
-			  <menuitem action="ShowContact"/>
-			  <menuitem action="EditContact"/>
 			  <menuitem action="NewContact"/>
 			  <menuitem action="DeleteContact"/>
 			  <separator name="SM1"/>
@@ -115,19 +109,25 @@ class MainWindow(gtk.Window):
 
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
-
+		
 		# toolbar
 		self.toolbar = self.uiManager.get_widget("/Toolbar")
 		self.vbox.pack_start(self.toolbar,False,False)
 
+		# paned
+		hpaned = gtk.HPaned()
+		hpaned.set_border_width(6)
+		self.vbox.pack_start(hpaned)
+		
 		scrolledwindow = gtk.ScrolledWindow()
 		scrolledwindow.unset_flags(gtk.CAN_FOCUS)
 		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
-		scrolledwindow.set_shadow_type(gtk.SHADOW_NONE)
-		self.vbox.pack_start(scrolledwindow)
+		scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
+		scrolledwindow.set_size_request(200, -1)
+		hpaned.add1(scrolledwindow)
 
 		# contactlist
-		self.contactData = gtk.ListStore(gobject.TYPE_STRING,gtk.gdk.Pixbuf,gobject.TYPE_PYOBJECT)
+		self.contactData = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
 		self.contactData.set_sort_func(0, sort_contacts, None)
 		self.contactData.set_sort_column_id(0, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
@@ -135,32 +135,35 @@ class MainWindow(gtk.Window):
 		self.contactList.set_rules_hint(True)
 		self.contactList.set_enable_search(True)
 		self.contactList.set_search_equal_func(search_contacts)
+		self.contactSelection = self.contactList.get_selection()
 		scrolledwindow.add(self.contactList)
 
 		# contactlist cellrenderers
 		celltxt = gtk.CellRendererText()
 		celltxt.set_property("ellipsize",pango.ELLIPSIZE_END)
-		cellimage = gtk.CellRendererPixbuf()
 		column = gtk.TreeViewColumn()
 		column.pack_start(celltxt)
-		column.pack_end(cellimage,False)
 		column.add_attribute(celltxt,"markup",0)
-		column.add_attribute(cellimage,"pixbuf",1)
 		column.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
 		self.contactList.append_column(column)
 
-		# events
-		self.contactList.connect("row_activated", self.contactList_click)
-		self.contactList.connect("button_press_event", self.contactList_press)
-		self.contactList.connect("popup_menu", self.contactList_popup_menu)
-		self.contactList.get_selection().connect("changed", self.contactList_change)
-		self.contactList_change(self.contactList.get_selection())
-
 		self.vbox.show_all()
+
+		# contactview
+		self.contactView = ContactWindow.ContactWindow(self)
+		self.contactView.hide()
+		self.view_visible = False	
+		hpaned.add2(self.contactView)
+		
+		# events
+		self.contactList.connect("row-activated", self.contactList_click)
+		self.contactList.connect("button-press-event", self.contactList_press)
+		self.contactList.connect("popup-menu", self.contactList_popup_menu)
+		self.contactSelection.connect("changed", self.contactSelection_change)
 
 		load_contacts(os.path.expanduser("~/Contacts"), self.contactData)
 		self.contactList.grab_focus()
-
+		
 	#---------------
 	# event funtions
 	#---------------
@@ -170,9 +173,9 @@ class MainWindow(gtk.Window):
 	def showbutton_click(self, widget, edit = False):
 		if self.contactList.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactList.get_selection().get_selected()
-			entry = model[iter][2]
-			entrywindow = ContactWindow.ContactWindow(self, entry, edit)
-			entrywindow.show_all()
+			entry = model[iter][1]
+			self.contactView.build_interface(entry, edit)
+			self.contactView.show_all()
 			
 	def editbutton_click(self, widget):
 		self.showbutton_click(widget, True)
@@ -187,9 +190,9 @@ class MainWindow(gtk.Window):
 					pass
 			dialog.destroy()
 			
-		if self.contactList.get_selection().count_selected_rows() > 0:
-			(model, iter) = self.contactList.get_selection().get_selected()
-			entry = model[iter][2]
+		if self.contactSelection.count_selected_rows() > 0:
+			(model, iter) = self.contactSelection.get_selected()
+			entry = model[iter][1]
 			text = "<big><b>Remove Contact</b></big>\n\n"
 			text += "You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?" % (entry.fullname)
 			dialog = gtk.Dialog("Arkadas", self, gtk.DIALOG_MODAL)
@@ -212,7 +215,7 @@ class MainWindow(gtk.Window):
 			dialog.show_all()
 
 	def contactList_click(self, treeview, path, column):
-		self.showbutton_click(self.uiManager.get_widget("/Toolbar/ShowContact"))
+		self.showbutton_click(None, False)
 
 	def contactList_press(self, widget, event):
 		if event.button == 3:
@@ -221,17 +224,23 @@ class MainWindow(gtk.Window):
 	def contactList_popup_menu(self, widget):
 		self.uiManager.get_widget("/Itemmenu").popup(None, None, None, 3, 0)
 
-	def contactList_change(self, selection):
+	def contactSelection_change(self, selection):
+		x, y, width, height = self.get_allocation()
+		self.showbutton_click(None, False)
 		if selection.count_selected_rows() > 0:
-			self.uiManager.get_widget("/Itemmenu/ShowContact").show()
-			self.uiManager.get_widget("/Itemmenu/EditContact").show()
+			if not self.view_visible:
+				self.resize(600, height)
+				self.contactView.show()
+				self.view_visible = True
 			self.uiManager.get_widget("/Itemmenu/DeleteContact").show()
 			self.uiManager.get_widget("/Itemmenu/CopyName").show()
 			self.uiManager.get_widget("/Itemmenu/CopyEmail").show()
 			self.uiManager.get_widget("/Itemmenu/CopyNumber").show()
 		else:
-			self.uiManager.get_widget("/Itemmenu/ShowContact").hide()
-			self.uiManager.get_widget("/Itemmenu/EditContact").hide()
+			if self.view_visible:
+				self.resize(200, height)
+				self.contactView.hide()
+				self.view_visible = False				
 			self.uiManager.get_widget("/Itemmenu/DeleteContact").hide()
 			self.uiManager.get_widget("/Itemmenu/CopyName").hide()
 			self.uiManager.get_widget("/Itemmenu/CopyEmail").hide()
@@ -281,62 +290,13 @@ def load_contacts(path, model):
 
 		if entry.get_dict_from_file(os.path.join(path,file)):
 			entry.get_entries_from_dict()
-
-			markup = "<big><b>%s</b></big>" % (entry.fullname)
-			markup_small = "\n<small><b>%s: </b>%s</small>"
-
-			if entry.title != "":
-				markup += " <small>(%s)</small>" % (entry.title)
-
-			if len(entry.email) > 0:
-				markup += markup_small % ("email","<u>" + entry.email[0] + "</u>")
-			elif len(entry.work_email) > 0:
-				markup += markup_small % ("work email","<u>" + entry.work_email[0] + "</u>")
-
-			if len(entry.tel) > 0:
-				caption = "home"
-				if entry.tel[0][1]== "FAX":
-					caption += " fax"
-				elif entry.tel[0][1]== "CELL":
-					caption = "mobile"
-				markup += markup_small % (caption, entry.tel[0][0])
-			elif len(entry.work_tel) > 0:
-				caption = "work"
-				if entry.work_tel[0][1]== "FAX":
-					caption += " fax"
-				elif entry.work_tel[0][1]== "CELL":
-					caption += " mobile"
-				markup += markup_small % (caption, entry.work_tel[0][0])
-
-			iter = model.append([markup, None, entry])
+			
+			iter = model.append([entry.fullname, entry])
 			entry.iter = iter
-
-			if entry.photo != None:
-				gobject.idle_add(get_image_from_entry, model, entry)
-
-def get_image_from_entry(model, entry):
-	if entry.photo_type == "URI":
-		try:
-			url = urllib.urlopen(entry.photo)
-			data = url.read()
-			url.close()
-		except:
-			pass
-	elif entry.photo_type == "B64":
-		data = base64.decodestring(entry.photo)
-	try:
-		loader = gtk.gdk.PixbufLoader()
-		loader.write(data)
-		loader.close()
-		entry.pixbuf = loader.get_pixbuf()
-	except:
-		pass
-	model[entry.iter][1] = get_pixbuf_of_size(entry.pixbuf, 48, True)
-	return False
 
 # weird sort stuff
 def sort_contacts(model, iter1, iter2, data):
-	entry1 = model[iter1][2] ; entry2 = model[iter2][2]
+	entry1 = model[iter1][1] ; entry2 = model[iter2][1]
 	f1 = "" ; f2 = ""
 	if entry1 and entry2:
 		for i in (0,4,3,1,2):
@@ -346,7 +306,7 @@ def sort_contacts(model, iter1, iter2, data):
 	return 0
 
 def search_contacts(model, column, key, iter):
-	entry = model[iter][2]
-	if key.lower() in entry.fullname.lower():
+	fullname = model[iter][0]
+	if key.lower() in fullname.lower():
 		return False
 	return True
