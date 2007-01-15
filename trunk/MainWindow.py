@@ -65,8 +65,8 @@ class MainWindow(gtk.Window):
 
 	def build_interface(self):
 		actions = (
-			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", self.newbutton_click),
-			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deletebutton_click),
+			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", self.newButton_click),
+			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deleteButton_click),
 			("Preferences", gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
 			("About", gtk.STOCK_ABOUT, None, None, "About the application", self.about),
 			("CopyName", gtk.STOCK_COPY, "_Copy Fullname", None, None, None),
@@ -109,7 +109,7 @@ class MainWindow(gtk.Window):
 
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
-		
+
 		# toolbar
 		self.toolbar = self.uiManager.get_widget("/Toolbar")
 		self.vbox.pack_start(self.toolbar,False,False)
@@ -118,7 +118,7 @@ class MainWindow(gtk.Window):
 		hpaned = gtk.HPaned()
 		hpaned.set_border_width(6)
 		self.vbox.pack_start(hpaned)
-		
+
 		scrolledwindow = gtk.ScrolledWindow()
 		scrolledwindow.unset_flags(gtk.CAN_FOCUS)
 		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
@@ -143,7 +143,7 @@ class MainWindow(gtk.Window):
 		celltxt.set_property("ellipsize",pango.ELLIPSIZE_END)
 		column = gtk.TreeViewColumn()
 		column.pack_start(celltxt)
-		column.add_attribute(celltxt,"markup",0)
+		column.add_attribute(celltxt,"text", 0)
 		column.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
 		self.contactList.append_column(column)
 
@@ -152,9 +152,9 @@ class MainWindow(gtk.Window):
 		# contactview
 		self.contactView = ContactWindow.ContactWindow(self)
 		self.contactView.hide()
-		self.view_visible = False	
+		self.view_visible = False
 		hpaned.add2(self.contactView)
-		
+
 		# events
 		self.contactList.connect("row-activated", self.contactList_click)
 		self.contactList.connect("button-press-event", self.contactList_press)
@@ -162,25 +162,27 @@ class MainWindow(gtk.Window):
 		self.contactSelection.connect("changed", self.contactSelection_change)
 
 		load_contacts(os.path.expanduser("~/Contacts"), self.contactData)
-		self.contactList.grab_focus()
 		
+		self.contactSelection.select_iter(self.contactData.get_iter_first())
+		self.contactList.grab_focus()
+
 	#---------------
 	# event funtions
 	#---------------
-	def newbutton_click(self, widget):
-		pass
-
-	def showbutton_click(self, widget, edit = False):
+	def view_contact(self, edit = False):
 		if self.contactList.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactList.get_selection().get_selected()
 			entry = model[iter][1]
 			self.contactView.build_interface(entry, edit)
 			self.contactView.show_all()
-			
-	def editbutton_click(self, widget):
-		self.showbutton_click(widget, True)
 
-	def deletebutton_click(self, widget):
+	def newButton_click(self, widget):
+		pass
+
+	def editButton_click(self, widget):
+		self.view_contact(True)
+
+	def deleteButton_click(self, widget):
 		def dialog_response(dialog, response_id, entry):
 			if response_id == gtk.RESPONSE_OK:
 				try:
@@ -189,7 +191,7 @@ class MainWindow(gtk.Window):
 				except:
 					pass
 			dialog.destroy()
-			
+
 		if self.contactSelection.count_selected_rows() > 0:
 			(model, iter) = self.contactSelection.get_selected()
 			entry = model[iter][1]
@@ -203,7 +205,7 @@ class MainWindow(gtk.Window):
 			dialoghbox = gtk.HBox()
 			dialog.vbox.pack_start(dialoghbox, True, True, 6)
 			# dialog image
-			dialogimage = gtk.image_new_from_stock(gtk.STOCK_HELP, gtk.ICON_SIZE_DIALOG)
+			dialogimage = gtk.image_new_from_stock(gtk.STOCK_QUESTION, gtk.ICON_SIZE_DIALOG)
 			dialogimage.set_alignment(0.5, 0)
 			dialoghbox.pack_start(dialogimage, False, False, 10)
 			# dialog label
@@ -215,7 +217,7 @@ class MainWindow(gtk.Window):
 			dialog.show_all()
 
 	def contactList_click(self, treeview, path, column):
-		self.showbutton_click(None, False)
+		self.view_contact()
 
 	def contactList_press(self, widget, event):
 		if event.button == 3:
@@ -226,7 +228,7 @@ class MainWindow(gtk.Window):
 
 	def contactSelection_change(self, selection):
 		x, y, width, height = self.get_allocation()
-		self.showbutton_click(None, False)
+		self.view_contact()
 		if selection.count_selected_rows() > 0:
 			if not self.view_visible:
 				self.resize(600, height)
@@ -240,7 +242,7 @@ class MainWindow(gtk.Window):
 			if self.view_visible:
 				self.resize(200, height)
 				self.contactView.hide()
-				self.view_visible = False				
+				self.view_visible = False
 			self.uiManager.get_widget("/Itemmenu/DeleteContact").hide()
 			self.uiManager.get_widget("/Itemmenu/CopyName").hide()
 			self.uiManager.get_widget("/Itemmenu/CopyEmail").hide()
@@ -290,7 +292,7 @@ def load_contacts(path, model):
 
 		if entry.get_dict_from_file(os.path.join(path,file)):
 			entry.get_entries_from_dict()
-			
+
 			iter = model.append([entry.fullname, entry])
 			entry.iter = iter
 
