@@ -34,11 +34,11 @@ along with Arkadas; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import sys, os
+import sys, os, vobject
 import gtk, gobject, pango
 # local
 from Commons import *
-import ContactEntry, ContactWindow
+import ContactWindow
 
 class MainWindow(gtk.Window):
 
@@ -50,8 +50,7 @@ class MainWindow(gtk.Window):
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_geometry_hints(self, width, height)
 
-		self.set_icon_name("address-book")
-		gtk.window_set_default_icon_name("stock_contact")
+		gtk.window_set_default_icon_name("address-book")
 
 		self.connect("delete_event", self.delete_event)
 
@@ -127,21 +126,23 @@ class MainWindow(gtk.Window):
 		hpaned.add1(scrolledwindow)
 
 		# contactlist
-		self.contactData = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
+		self.contactData = gtk.ListStore(str, gobject.TYPE_PYOBJECT, str)
 		self.contactData.set_sort_func(0, sort_contacts, None)
 		self.contactData.set_sort_column_id(0, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
 		self.contactList.set_headers_visible(False)
 		self.contactList.set_rules_hint(True)
 		self.contactList.set_enable_search(True)
-		self.contactList.set_search_equal_func(search_contacts)
 		self.contactSelection = self.contactList.get_selection()
 		scrolledwindow.add(self.contactList)
 
 		# contactlist cellrenderers
+		cellimg = gtk.CellRendererPixbuf()
+		cellimg.set_property("icon-name", "stock_contact")
 		celltxt = gtk.CellRendererText()
-		celltxt.set_property("ellipsize",pango.ELLIPSIZE_END)
+		celltxt.set_property("ellipsize", pango.ELLIPSIZE_END)
 		column = gtk.TreeViewColumn()
+		column.pack_start(cellimg, False)
 		column.pack_start(celltxt)
 		column.add_attribute(celltxt,"text", 0)
 		column.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
@@ -162,8 +163,11 @@ class MainWindow(gtk.Window):
 		self.contactSelection.connect("changed", self.contactSelection_change)
 
 		load_contacts(os.path.expanduser("~/Contacts"), self.contactData)
-		
-		self.contactSelection.select_iter(self.contactData.get_iter_first())
+
+		first_iter = self.contactData.get_iter_first()
+		if first_iter is not None:
+			self.contactSelection.select_iter(first_iter)
+
 		self.contactList.grab_focus()
 
 	#---------------
@@ -183,20 +187,21 @@ class MainWindow(gtk.Window):
 		self.view_contact(True)
 
 	def deleteButton_click(self, widget):
-		def dialog_response(dialog, response_id, entry):
+		def dialog_response(dialog, response_id):
 			if response_id == gtk.RESPONSE_OK:
 				try:
-					 os.remove(entry.filename)
-					 self.contactData.remove(entry.iter)
+					 os.remove(filename)
+					 self.contactData.remove(iter)
 				except:
 					pass
 			dialog.destroy()
 
 		if self.contactSelection.count_selected_rows() > 0:
 			(model, iter) = self.contactSelection.get_selected()
-			entry = model[iter][1]
+			fullname = model[iter][0]
+			filename = model[iter][2]
 			text = "<big><b>Remove Contact</b></big>\n\n"
-			text += "You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?" % (entry.fullname)
+			text += "You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?" % (fullname)
 			dialog = gtk.Dialog("Arkadas", self, gtk.DIALOG_MODAL)
 			dialog.set_size_request(420, -1)
 			dialog.set_resizable(False)
@@ -205,7 +210,7 @@ class MainWindow(gtk.Window):
 			dialoghbox = gtk.HBox()
 			dialog.vbox.pack_start(dialoghbox, True, True, 6)
 			# dialog image
-			dialogimage = gtk.image_new_from_stock(gtk.STOCK_QUESTION, gtk.ICON_SIZE_DIALOG)
+			dialogimage = gtk.image_new_from_stock(gtk.STOCK_DIALOG_QUESTION, gtk.ICON_SIZE_DIALOG)
 			dialogimage.set_alignment(0.5, 0)
 			dialoghbox.pack_start(dialogimage, False, False, 10)
 			# dialog label
@@ -213,7 +218,7 @@ class MainWindow(gtk.Window):
 			dialoglabel.set_markup(text)
 			dialoglabel.set_line_wrap(True)
 			dialoghbox.pack_start(dialoglabel)
-			dialog.connect("response",dialog_response, entry)
+			dialog.connect("response", dialog_response)
 			dialog.show_all()
 
 	def contactList_click(self, treeview, path, column):
@@ -280,35 +285,41 @@ class MainWindow(gtk.Window):
 # help funtions
 #--------------
 def load_contacts(path, model):
-	if os.path.exists(path) == False:
-		os.mkdir(path)
-
+	# make path if dont exists
+	if os.path.exists(path) == False: os.mkdir(path)
+	# clear all entrys
 	model.clear()
-
+	# read all files in folder
 	for file in os.listdir(path):
 		if file[-3:] != "vcf": continue
-
-		entry = ContactEntry.Entry()
-
-		if entry.get_dict_from_file(os.path.join(path,file)):
-			entry.get_entries_from_dict()
-
-			iter = model.append([entry.fullname, entry])
-			entry.iter = iter
+		filename = os.path.join(path, file)
+		components = vobject.readComponents(open(filename, "r"), False, True, True)
+		while(True):
+			try:
+				# create vcard-object
+				vcard = components.next()
+				# get fullname, else make fullname from name
+				if not has_child(vcard, "fn"):
+					fn = ""
+					n = vcard.n.value.split(";")
+					for i in (3,1,2,0,4):
+						fn += n[i].strip() + " "
+					vcard.add("fn")
+					vcard.fn.value = fn.strip().replace("  "," ")
+				model.append([vcard.fn.value, vcard, filename])
+			except:
+				break
 
 # weird sort stuff
 def sort_contacts(model, iter1, iter2, data):
-	entry1 = model[iter1][1] ; entry2 = model[iter2][1]
+	vcard1 = model[iter1][1]
+	vcard2 = model[iter2][1]
 	f1 = "" ; f2 = ""
-	if entry1 and entry2:
-		for i in (0,4,3,1,2):
-			f1 += entry1.name[i].strip() + " "
-			f2 += entry2.name[i].strip() + " "
+	try:
+		f1 += vcard1.n.value.family
+		f1 += " " + vcard1.n.value.given
+		f2 += vcard2.n.value.family
+		f2 += " " + vcard2.n.value.given
 		return cmp(f1.strip().replace("  "," "),f2.strip().replace("  "," "))
-	return 0
-
-def search_contacts(model, column, key, iter):
-	fullname = model[iter][0]
-	if key.lower() in fullname.lower():
-		return False
-	return True
+	except:
+		return 1

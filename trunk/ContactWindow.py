@@ -20,7 +20,7 @@ import gtk, gobject, pango
 from Commons import *
 import ContactEntry
 
-order = ["TEL", "EMAIL", "WEB", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "WORK_WEB", "WORK_ADR"]
+order = ["TEL", "EMAIL", "URL", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "WORK_ADR"]
 
 class ContactWindow(gtk.VBox):
 
@@ -38,58 +38,57 @@ class ContactWindow(gtk.VBox):
 		self.pack_start(self.scrolledwindow)
 
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
-		self.vsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_VERTICAL)
-		
+
 		# buttons
 		self.buttonbox = gtk.HBox(False, 6)
 		self.pack_end(self.buttonbox, False)
 
-		self.buttonbox.pack_start(gtk.Label())
-
-		self.addButton = gtk.Button("",gtk.STOCK_ADD)
+		self.addButton = gtk.Button("", gtk.STOCK_ADD)
 		self.addButton.set_sensitive(False)
 		self.addButton.set_no_show_all(True)
 		self.addButton.show()
 		self.addButton.get_child().get_child().get_children()[1].hide()
 		self.buttonbox.pack_start(self.addButton, False)
 
-		self.editButton = gtk.ToggleButton(gtk.STOCK_EDIT)
-		self.editButton.set_use_stock(True)
+		self.buttonbox.pack_start(gtk.Label())
+
+		self.saveButton = gtk.Button("", gtk.STOCK_SAVE)
+		self.saveButton.set_no_show_all(True)
+		self.buttonbox.pack_start(self.saveButton, False)
+
+		self.editButton = gtk.Button("", gtk.STOCK_EDIT)
 		self.editButton.set_no_show_all(True)
-		self.editButton.show()
-		self.editButton.get_child().get_child().get_children()[1].hide()
 		self.buttonbox.pack_start(self.editButton, False)
 
-	def build_interface(self, entry, edit_mode=False):
+	def build_interface(self, vcard, edit=False):
 		# help-functions
 		#---------------
-		def add_label(box, text, type):
-			def remove_item(button, event):
-				if type == "NOTE":
-					textbuffer.set_text("")
-				else:
-					self.remove(hbox)
+		def add_labels_by_name(box, workbox, name):
+			if has_child(vcard, name):
+				for child in vcard.contents[name]:
+					if "WORK" in child.type_paramlist: add_label(workbox, child)
+					else: add_label(box, child)
+
+		def add_label(box, content):
+			def remove_item(button):
 					hbox.destroy()
-					self.get_toplevel().window.set_cursor(None)
-			
+
 			hbox = gtk.HBox(False, 4)
 
 			# caption
 			captionbox = gtk.VBox()
-			caption = ComboLabel(type)
-			caption.button.connect("button_press_event", remove_item)
+			caption = CaptionField(content)
+			caption.button.connect("clicked", remove_item)
 			captionbox.pack_start(caption, False)
 			hbox.pack_start(captionbox, False)
 			self.hsizegroup.add_widget(caption)
-			self.vsizegroup.add_widget(caption)
 
-			if "ADR" in type:
-				# address
-				field = AddressField(text, type)
-			elif type == "NOTE":
+			if content.name == "ADR":
+				field = AddressField(content)
+			elif content.name == "NOTE":
 				# multiline label
 				textbuffer = gtk.TextBuffer()
-				textbuffer.set_text(text)
+				textbuffer.set_text(content.value)
 				tag_table = textbuffer.get_tag_table()
 				tag = gtk.TextTag()
 				tag.set_property("foreground", "black")
@@ -97,27 +96,30 @@ class ContactWindow(gtk.VBox):
 				textbuffer.apply_tag(tag, textbuffer.get_start_iter(), textbuffer.get_end_iter())
 				field = gtk.TextView(textbuffer)
 				field.set_wrap_mode(gtk.WRAP_WORD)
+				field.set_editable(False)
 			else:
 				# LabelEntry
-				field = LabelEntry(text, type)
+				field = LabelField(content)
 				field.set_editable(False)
-				self.vsizegroup.add_widget(field)
 
 			hbox.pack_start(field)
 			box.add(hbox)
-			
+
 		#---------------
-		self.addButton.set_sensitive(edit_mode)
-		self.editButton.set_active(edit_mode)
-		self.editButton.connect("toggled", self.switch_mode, entry)
-		
+		self.addButton.set_sensitive(edit)
+		self.addButton.connect("clicked", self.addButton_click, vcard)
+		self.saveButton.set_property("visible", edit)
+		self.saveButton.connect("clicked", self.saveButton_click, vcard)
+		self.editButton.set_property("visible", not edit)
+		self.editButton.connect("clicked", self.editButton_click, vcard)
+
 		if self.table is not None: self.table.destroy()
 		self.table = gtk.VBox(False, 10)
 		self.table.set_border_width(10)
 		self.table.set_no_show_all(True)
 		self.scrolledwindow.add_with_viewport(self.table)
 		self.scrolledwindow.get_child().modify_bg(gtk.STATE_NORMAL,self.color)
-		
+
 		self.photohbox = gtk.HBox(False, 2)
 		self.emailbox = EventVBox()
 		self.workemailbox = EventVBox()
@@ -125,15 +127,14 @@ class ContactWindow(gtk.VBox):
 		self.worktelbox = EventVBox()
 		self.imbox = EventVBox()
 		self.workadrbox = EventVBox()
-		self.webbox = EventVBox()
-		self.workwebbox = EventVBox()
+		self.urlbox = EventVBox()
 		self.adrbox = EventVBox()
 		self.bdaybox = EventVBox()
 		self.notebox = EventVBox()
-		
+
 		self.table.pack_start(self.photohbox, False)
 		self.table.pack_start(gtk.Label())
-		
+
 		for type in order:
 			# tel numbers
 			if type == "TEL":
@@ -146,10 +147,8 @@ class ContactWindow(gtk.VBox):
 			elif type == "WORK_EMAIL":
 				self.table.pack_start(self.workemailbox, False)
 			# web
-			elif type == "WEB":
-				self.table.pack_start(self.webbox, False)
-			elif type == "WORK_WEB":
-				self.table.pack_start(self.workwebbox, False)
+			elif type == "URL":
+				self.table.pack_start(self.urlbox, False)
 			# instant messaging
 			elif type == "IM":
 				self.table.pack_start(self.imbox, False)
@@ -161,135 +160,131 @@ class ContactWindow(gtk.VBox):
 			# birthday
 			elif type == "BDAY":
 				self.table.pack_start(self.bdaybox, False)
-				
+
 		self.table.pack_start(gtk.Label())
 		self.table.pack_start(self.notebox, False)
-		
-		# contact photo
-		if entry.pixbuf:
-			pixbuf = get_pixbuf_of_size(entry.pixbuf,64, False)
-			self.hasphoto = True
-		else:
-			if entry.photo:
-				if entry.photo_type == "URI":
-					try:
-						url = urllib.urlopen(entry.photo)
-						data = url.read()
-						url.close()
-					except:
-						pass
-				elif entry.photo_type == "B64":
-					data = base64.decodestring(entry.photo)
+
+		# FIELD - photo
+		if has_child(vcard, "photo"):
+			date = None
+			if "VALUE" in vcard.photo.params:
 				try:
-					loader = gtk.gdk.PixbufLoader()
-					loader.write(data)
-					loader.close()
-					entry.pixbuf = loader.get_pixbuf()
+					url = urllib.urlopen(vcard.photo.value)
+					data = url.read()
+					url.close()
 				except:
 					pass
-				pixbuf = get_pixbuf_of_size(entry.pixbuf,64, False)
+			elif "ENCODING" in vcard.photo.params:
+				data = vcard.photo.value
+			try:
+				loader = gtk.gdk.PixbufLoader()
+				loader.write(data)
+				loader.close()
+				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64, True)
 				self.hasphoto = True
-			else:
+			except:
 				pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
 				self.hasphoto = False
-		
+		else:
+			pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
+			self.hasphoto = False
+
+		hbox = gtk.HBox()
+		self.hsizegroup.add_widget(hbox)
+		self.photohbox.pack_start(hbox,False)
 		self.photo = ImageButton(pixbuf, self.color, True)
 		#self.photo.connect("button_press_event", remove_photo)
-		#self.tooltips.set_tip(self.photo,"Click to remove image")		
-		self.hsizegroup.add_widget(self.photo)
-		self.photohbox.pack_start(self.photo,False)
-		
-		# big title
+		self.tooltips.set_tip(self.photo,"Click to change image")
+		hbox.pack_end(self.photo, False)
+
 		titlevbox = gtk.VBox()
 		self.photohbox.pack_start(titlevbox, True, True, 2)
-		
+
+		# FIELD - fullname & nickname
 		fullname = gtk.Label()
-		text = "<span size=\"x-large\"><b>%s</b></span>" % entry.fullname
-		if len(entry.nick) > 0:
-			text += " (<big>%s</big>)" % (entry.nick)
+		text = "<span size=\"x-large\"><b>%s</b></span>" % vcard.fn.value
+		if has_child(vcard, "nickname"):
+			text += " (<big>%s</big>)" % (vcard.nickname.value)
 		fullname.set_markup(text)
 		fullname.set_alignment(0,0)
 		fullname.set_selectable(True)
 		titlevbox.pack_start(fullname)
-		
+
+		# FIELD - title & org
 		text = ""
 		org = gtk.Label()
-		if len(entry.title) > 0:
-			text += entry.title
-		if len(entry.org) > 0:
-			text += "\n" + entry.org
-		org.set_markup(text)
+		if has_child(vcard, "title"):
+			text += vcard.title.value
+		if has_child(vcard, "org"):
+			text += "\n" + vcard.org.value
+		org.set_text(text)
 		org.set_alignment(0,0)
 		org.set_selectable(True)
 		titlevbox.pack_start(org)
 
 		self.photohbox.show_all()
-	    
-		# add widgets
-		# tel numbers
-		if len(entry.tel) > 0:
-			for i in range(len(entry.tel)):
-				add_label(self.telbox, entry.tel[i][0], entry.tel[i][1])
-		if len(entry.work_tel) > 0:
-			for i in range(len(entry.work_tel)):
-				add_label(self.worktelbox, entry.work_tel[i][0], "WORK_" + entry.work_tel[i][1])
-		# emails
-		if len(entry.email) > 0:
-			for i in range(len(entry.email)):
-				add_label(self.emailbox, entry.email[i], "EMAIL")
-		if len(entry.work_email) > 0:
-			for i in range(len(entry.work_email)):
-				add_label(self.workemailbox, entry.work_email[i], "WORK_EMAIL")
-		# web
-		if len(entry.url) > 0:
-			add_label(self.webbox, entry.url, "WEB")
-		if len(entry.work_url) > 0:
-			add_label(self.workwebbox, entry.work_url, "WORK_WEB")
-		# instant messaging
-		if len(entry.im) > 0:
-			for i in range(len(entry.im)):
-				add_label(self.imbox, entry.im[i][0], entry.im[i][1])
-		# address
-		if len(entry.address) > 0:
-			add_label(self.adrbox, entry.address, "ADR") 
-		if len(entry.work_address) > 0:
-			add_label(self.workadrbox, entry.work_address, "WORK_ADR")
-		# birthday
-		try:
-			if entry.bday_year:
-				date = datetime.date(entry.bday_year, entry.bday_month, entry.bday_day).strftime("%d.%m.%Y")
-				add_label(self.bdaybox, date, "BDAY")
-		except: pass
 
+		# FIELD - tel
+		add_labels_by_name(self.telbox, self.worktelbox, "tel")
+		# FIELD - emails
+		add_labels_by_name(self.emailbox, self.workemailbox, "email")
+		# FIELD - web
+		if has_child(vcard, "url"):
+			for child in vcard.contents["url"]:
+				add_label(self.urlbox, child)
+		# FIELD - instant messaging
+		for im in im_types:
+			if has_child(vcard, im.lower()):
+				for child in vcard.contents[im.lower()]:
+					add_label(self.imbox, child)
+		# FIELD - address
+		#add_labels_by_name(self.adrbox, "adr")
+		#add_labels_by_name(self.workadrbox, "adr", True)
+		# FIELD - birthday
+		if has_child(vcard, "bday"):
+			for child in vcard.contents["bday"]:
+				add_label(self.bdaybox, child)
+
+		# FIELD - note
 		self.notebox.add(gtk.HSeparator())
 		self.notebox.set_spacing(4)
-		add_label(self.notebox, entry.note_text, "NOTE")
+		if not has_child(vcard, "note"): vcard.add("note")
+		add_label(self.notebox, vcard.note)
 
+		self.table.set_no_show_all(True)
 		self.table.show()
 
 	#---------------
 	# event funtions
 	#---------------
-	def switch_mode(self, button, entry):
-		state = button.get_active()
+	def addButton_click(self, button, vcard):
+		pass
+
+	def saveButton_click(self, button, vcard):
+		self.switch_mode(vcard, False)
+
+	def editButton_click(self, button, vcard):
+		self.switch_mode(vcard, True)
+
+	def switch_mode(self, vcard, state=False):
 		self.addButton.set_sensitive(state)
-		if state:
-			self.notebox.get_children()[0].hide()
-		else:	
-			self.notebox.get_children()[0].show()
+		self.saveButton.set_property("visible", state)
+		self.editButton.set_property("visible", not state)
 
 		for child in self.table.get_children():
 			if type(child) == EventVBox:
 				for hbox in child.get_children():
 					if type(hbox) == gtk.HBox:
+						# get caption & field
 						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
 						caption.set_editable(state)
-						if type(field) == LabelEntry:
+						# remove empty field
+						if type(field) == LabelField:
 							field.set_editable(state)
-							# remove if empty
 							if field.get_text() == "": hbox.destroy() ; continue
-						elif type(field) == AddressField:
-							field.set_editable(state)
-							if field.address == len(field.address) * [""]: hbox.destroy() ; continue
 						elif type(field) == gtk.TextView:
 							field.set_editable(state)
+
+
+	def namedialog(self, button, event, vcard):
+		pass
