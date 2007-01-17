@@ -44,14 +44,14 @@ class ContactWindow(gtk.VBox):
 		self.buttonbox = gtk.HBox(False, 6)
 		self.pack_end(self.buttonbox, False)
 
+		self.buttonbox.pack_start(gtk.Label())
+
 		self.addButton = gtk.Button("",gtk.STOCK_ADD)
 		self.addButton.set_sensitive(False)
 		self.addButton.set_no_show_all(True)
 		self.addButton.show()
 		self.addButton.get_child().get_child().get_children()[1].hide()
 		self.buttonbox.pack_start(self.addButton, False)
-
-		self.buttonbox.pack_start(gtk.Label())
 
 		self.editButton = gtk.ToggleButton(gtk.STOCK_EDIT)
 		self.editButton.set_use_stock(True)
@@ -68,7 +68,7 @@ class ContactWindow(gtk.VBox):
 				if type == "NOTE":
 					textbuffer.set_text("")
 				else:
-					self.widgets.remove(hbox)
+					self.remove(hbox)
 					hbox.destroy()
 					self.get_toplevel().window.set_cursor(None)
 			
@@ -224,7 +224,7 @@ class ContactWindow(gtk.VBox):
 		titlevbox.pack_start(org)
 
 		self.photohbox.show_all()
-
+	    
 		# add widgets
 		# tel numbers
 		if len(entry.tel) > 0:
@@ -273,6 +273,10 @@ class ContactWindow(gtk.VBox):
 	def switch_mode(self, button, entry):
 		state = button.get_active()
 		self.addButton.set_sensitive(state)
+		if state:
+			self.notebox.get_children()[0].hide()
+		else:	
+			self.notebox.get_children()[0].show()
 
 		for child in self.table.get_children():
 			if type(child) == EventVBox:

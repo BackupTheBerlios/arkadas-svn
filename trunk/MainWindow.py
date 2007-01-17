@@ -42,13 +42,13 @@ import ContactEntry, ContactWindow
 
 class MainWindow(gtk.Window):
 
-	def __init__(self, width = 200, height = 400):
+	def __init__(self, width=200, height=400):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 
 		self.set_title("Address Book")
-		self.set_default_size( width , height )
+		self.set_default_size(width, height)
 		self.set_position(gtk.WIN_POS_CENTER)
-		self.set_geometry_hints(self, width, height )
+		self.set_geometry_hints(self, width, height)
 
 		self.set_icon_name("address-book")
 		gtk.window_set_default_icon_name("stock_contact")

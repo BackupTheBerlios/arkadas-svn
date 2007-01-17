@@ -13,7 +13,7 @@ types = {
 	"ADR-4":"State", "ADR-5":"Zip", "ADR-6":"Country",
 	# tel types
 	"VOICE":"Landline", "ISDN":"ISDN",
-	"CELL":"Mobile", "CELL_CAP":"mobile",
+	"CELL":"Mobile", "CELL_CAP":"mobiles",
 	"FAX":"Fax", "FAX_CAP":"fax",
 	"CAR":"Car", "VIDEO":"Video",
 	"PAGER":"Pager", "MODEM":"Modem",
@@ -70,7 +70,8 @@ class ComboLabel(gtk.HBox):
 		self.menu.show_all()
 		
 		color = gtk.gdk.color_parse("white")
-		self.button = ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), color)
+		self.button = gtk.Button() #ImageButton(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU), color)
+		self.button.set_image(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU))
 		self.pack_start(self.button, False)
 		self.labelbox = gtk.EventBox()
 		self.labelbox.modify_bg(gtk.STATE_NORMAL, color)
