@@ -4,7 +4,7 @@ types = {
 	"HOME":"Home", "WORK":"Work",
 	"BDAY":"Birthday", "URL":"Website",
 	"EMAIL":"Email", "IM":"Username",
-	"NOTE":"Notes",
+	"NOTE":"Notes:",
 	# address types
 	"BOX":"Postbox", "EXTENDED":"Extended",
 	"STREET":"Street", "CITY":"City",
@@ -362,7 +362,6 @@ class ImageButton(gtk.EventBox):
 # functions
 #----------
 def escape(s):
-	"""escape vcard value string"""
 	s = s.replace(',', '\,')
 	s = s.replace(';', '\;')
 	s = s.replace('\n', '\\n')
@@ -371,13 +370,32 @@ def escape(s):
 	return s
 
 def unescape(s):
-	"""unescape vcard value string"""
 	s = s.replace('\,', ',')
 	s = s.replace('\;', ';')
 	s = s.replace('\\n', '\n')
 	s = s.replace('\\r', '\r')
 	s = s.replace('\\t', '\t')
 	return s
+
+def entities(s):
+	s = s.replace('<', '&lt;')
+	s = s.replace('>', '&gt;')
+	s = s.replace('&', '&amp;')
+	s = s.replace('"', '&quot;')
+	return s
+
+def bday_from_value(value):
+	try:
+		(y, m, d) = value.split("-", 2)
+		d = d.split('T')
+		if y.isdigit() and m.isdigit() and d[0].isdigit():
+			year = int(y); month = int(m); day = int(d[0])
+			if month >=1 and month <=12:
+				if day >= 1 and day <=31:
+					return (year, month, day)
+	except:
+		pass
+	return (None, None, None)
 
 def has_child(vcard, childName, childNumber = 0):
 	return len(str(vcard.getChildValue(childName, "", childNumber))) > 0

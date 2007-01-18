@@ -27,6 +27,7 @@ class ContactWindow(gtk.VBox):
 	def __init__(self, parent):
 		gtk.VBox.__init__(self, False, 6)
 
+		self.new_parent = parent
 		self.tooltips = parent.tooltips
 
 		self.table = None
@@ -107,11 +108,8 @@ class ContactWindow(gtk.VBox):
 			box.add(hbox)
 
 		#---------------
-		self.addButton.set_sensitive(edit)
 		self.addButton.connect("clicked", self.addButton_click, vcard)
-		self.saveButton.set_property("visible", edit)
 		self.saveButton.connect("clicked", self.saveButton_click, vcard)
-		self.editButton.set_property("visible", not edit)
 		self.editButton.connect("clicked", self.editButton_click, vcard)
 
 		if self.table is not None: self.table.destroy()
@@ -203,9 +201,9 @@ class ContactWindow(gtk.VBox):
 
 		# FIELD - fullname & nickname
 		fullname = gtk.Label()
-		text = "<span size=\"x-large\"><b>%s</b></span>" % vcard.fn.value
+		text = "<span size=\"x-large\"><b>%s</b></span>" % unescape(vcard.fn.value)
 		if has_child(vcard, "nickname"):
-			text += " (<big>%s</big>)" % (vcard.nickname.value)
+			text += " (<big>%s</big>)" % unescape(vcard.nickname.value)
 		fullname.set_markup(text)
 		fullname.set_alignment(0,0)
 		fullname.set_selectable(True)
@@ -215,13 +213,21 @@ class ContactWindow(gtk.VBox):
 		text = ""
 		org = gtk.Label()
 		if has_child(vcard, "title"):
-			text += vcard.title.value
+			text += unescape(vcard.title.value)
 		if has_child(vcard, "org"):
-			text += "\n" + vcard.org.value
+			text += "\n" + unescape(vcard.org.value)
 		org.set_text(text)
 		org.set_alignment(0,0)
 		org.set_selectable(True)
 		titlevbox.pack_start(org)
+
+		self.changeButton = gtk.Button()
+		self.changeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_EDIT, gtk.ICON_SIZE_MENU))
+		self.changeButton.set_no_show_all(True)
+		self.changeButton.set_property("visible", edit)
+		self.changeButton.connect("clicked", self.changeButton_click, vcard)
+		self.tooltips.set_tip(self.changeButton,"Click to change fullname")
+		self.photohbox.pack_start(self.changeButton, False)
 
 		self.photohbox.show_all()
 
@@ -254,6 +260,8 @@ class ContactWindow(gtk.VBox):
 		self.table.set_no_show_all(True)
 		self.table.show()
 
+		self.switch_mode(vcard, edit)
+
 	#---------------
 	# event funtions
 	#---------------
@@ -261,15 +269,165 @@ class ContactWindow(gtk.VBox):
 		pass
 
 	def saveButton_click(self, button, vcard):
-		self.switch_mode(vcard, False)
+		self.switch_mode(vcard, False, True)
 
 	def editButton_click(self, button, vcard):
-		self.switch_mode(vcard, True)
+		self.switch_mode(vcard, True, False)
 
-	def switch_mode(self, vcard, state=False):
+	def changeButton_click(self, button, vcard):
+		def add_label(text):
+			label = gtk.Label(text)
+			label.set_alignment(1, 0.5)
+			label.set_padding(4, 0)
+			label.set_use_underline(True)
+			return label
+
+		def combo_changed(combo):
+			index = combo.get_active()
+			text = ""
+			if index == 0:
+				# simple name
+				text += entry1.get_text() + " "
+				text += entry2.get_text() + " "
+				text += entry3.get_text()
+			elif index == 1:
+				# full name
+				text += entry4.get_text() + " "
+				text += entry1.get_text() + " "
+				text += entry2.get_text() + " "
+				text += entry3.get_text() + " "
+				text += entry5.get_text()
+			elif index == 2:
+				# reverse name with comma
+				text += entry3.get_text() + ", "
+				text += entry1.get_text() + " "
+				text += entry2.get_text()
+			elif index == 3:
+				# reverse name
+				text += entry3.get_text() + " "
+				text += entry1.get_text() + " "
+				text += entry2.get_text()
+			testlabel.set_text(text.replace("  ", " ").strip())
+
+		def dialog_response(dialog, response_id):
+			if response_id == gtk.RESPONSE_OK:
+				if not has_child(vcard, "n"): vcard.add("n")
+				vcard.n.value.given = entry1.get_text().replace("  "," ").strip()
+				vcard.n.value.additional = entry2.get_text().replace("  "," ").strip()
+				vcard.n.value.family = entry3.get_text().replace("  "," ").strip()
+				vcard.n.value.prefix = entry4.get_text().replace("  "," ").strip()
+				vcard.n.value.suffix = entry5.get_text().replace("  "," ").strip()
+
+				vcard.fn.value = escape(testlabel.get_text())
+
+				if len(entry6.get_text().replace("  "," ").strip()) > 0:
+					if not has_child(vcard, "nickname"): vcard.add("nickname")
+					vcard.nickname.value = escape(entry6.get_text().replace("  "," ").strip())
+				elif has_child(vcard, "nickname"): vcard.remove(vcard.nickname)
+
+				if len(entry7.get_text().replace("  "," ").strip()) > 0:
+					if not has_child(vcard, "title"): vcard.add("title")
+					vcard.title.value = escape(entry7.get_text().replace("  "," ").strip())
+				elif has_child(vcard, "title"): vcard.remove(vcard.title)
+
+				if len(entry8.get_text().replace("  "," ").strip()) > 0:
+					if not has_child(vcard, "org"): vcard.add("org")
+					vcard.org.value = escape(entry8.get_text().replace("  "," ").strip())
+				elif has_child(vcard, "org"): vcard.remove(vcard.org)
+
+				box = self.photohbox.get_children()[1]
+				fullname, org = box.get_children()
+
+				text = "<span size=\"x-large\"><b>%s</b></span>" % unescape(vcard.fn.value)
+				if has_child(vcard, "nickname"):
+					text += " (<big>%s</big>)" % unescape(vcard.nickname.value)
+				fullname.set_markup(text)
+
+				text = ""
+				if has_child(vcard, "title"):
+					text += unescape(vcard.title.value)
+				if has_child(vcard, "org"):
+					text += "\n" + unescape(vcard.org.value)
+				org.set_text(text)
+
+			dialog.destroy()
+
+		dialog = gtk.Dialog("Change Name", self.new_parent, gtk.DIALOG_MODAL)
+		dialog.set_resizable(False)
+		#dialog.set_size_request(420, -1)
+		dialog.set_has_separator(False)
+		dialog.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_APPLY, gtk.RESPONSE_OK)
+		# dialog table
+		table = gtk.Table(13, 2)
+		table.set_border_width(6)
+		dialog.vbox.add(table)
+
+		table.attach(add_label("_Given name:"), 0, 1, 0, 1)
+		entry1 = gtk.Entry() ; table.attach(entry1, 1, 2, 0, 1)
+
+		table.attach(add_label("_Additional names:"), 0, 1, 1, 2)
+		entry2 = gtk.Entry() ; table.attach(entry2, 1, 2, 1, 2)
+
+		table.attach(add_label("_Family names:"), 0, 1, 2, 3)
+		entry3 = gtk.Entry() ; table.attach(entry3, 1, 2, 2, 3)
+
+		table.attach(gtk.Label(), 0, 2, 3, 4)
+
+		table.attach(add_label("_Prefixes:"), 0, 1, 4, 5)
+		entry4 = gtk.Entry() ; table.attach(entry4, 1, 2, 4, 5)
+
+		table.attach(add_label("_Suffixes:"), 0, 1, 5, 6)
+		entry5 = gtk.Entry() ; table.attach(entry5, 1, 2, 5, 6)
+
+		table.attach(gtk.Label(), 0, 3, 6, 7)
+
+		table.attach(add_label("For_matted name:"), 0, 1, 7, 8)
+
+		combo = gtk.combo_box_new_text()
+		combo.append_text("Simple Name")
+		combo.append_text("Full Name")
+		combo.append_text("Reverse Name with Comma")
+		combo.append_text("Reverse Name")
+		combo.connect("changed", combo_changed)
+		table.attach(combo, 1, 2, 7, 8)
+
+		testlabel = gtk.Entry()
+		testlabel.set_editable(False)
+		table.attach(testlabel, 1, 2, 8, 9)
+
+		table.attach(gtk.HSeparator(), 0, 2, 9, 10, ypadding=6)
+
+		table.attach(add_label("_Nickname:"), 0, 1, 10, 11)
+		entry6 = gtk.Entry() ; table.attach(entry6, 1, 2, 10, 11)
+
+		table.attach(add_label("_Title/Role:"), 0, 1, 11, 12)
+		entry7 = gtk.Entry() ; table.attach(entry7, 1, 2, 11, 12)
+
+		table.attach(add_label("_Organization:"), 0, 1, 12, 13)
+		entry8 = gtk.Entry() ; table.attach(entry8, 1, 2, 12, 13)
+
+		if has_child(vcard, "n"):
+			entry1.set_text(vcard.n.value.given)
+			entry2.set_text(vcard.n.value.additional)
+			entry3.set_text(vcard.n.value.family)
+			entry4.set_text(vcard.n.value.prefix)
+			entry5.set_text(vcard.n.value.suffix)
+		entry6.set_text(unescape(vcard.getChildValue("nickname", "")))
+		entry7.set_text(unescape(vcard.getChildValue("title", "")))
+		entry8.set_text(unescape(vcard.getChildValue("org", "")))
+
+		combo.set_active(1)
+		combo_changed(combo)
+
+		# events
+		dialog.connect("response", dialog_response)
+		dialog.show_all()
+
+	def switch_mode(self, vcard, state=False, save=False):
 		self.addButton.set_sensitive(state)
 		self.saveButton.set_property("visible", state)
 		self.editButton.set_property("visible", not state)
+		self.changeButton.set_property("visible", state)
 
 		for child in self.table.get_children():
 			if type(child) == EventVBox:
@@ -289,7 +447,3 @@ class ContactWindow(gtk.VBox):
 								hbox.destroy() ; continue
 						elif type(field) == gtk.TextView:
 							field.set_editable(state)
-
-
-	def namedialog(self, button, event, vcard):
-		pass

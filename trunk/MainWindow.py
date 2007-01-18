@@ -183,9 +183,6 @@ class MainWindow(gtk.Window):
 	def newButton_click(self, widget):
 		pass
 
-	def editButton_click(self, widget):
-		self.view_contact(True)
-
 	def deleteButton_click(self, widget):
 		def dialog_response(dialog, response_id):
 			if response_id == gtk.RESPONSE_OK:
@@ -222,7 +219,7 @@ class MainWindow(gtk.Window):
 			dialog.show_all()
 
 	def contactList_click(self, treeview, path, column):
-		self.view_contact()
+		self.view_contact(True)
 
 	def contactList_press(self, widget, event):
 		if event.button == 3:
@@ -305,7 +302,7 @@ def load_contacts(path, model):
 					for i in (3,1,2,0,4):
 						fn += n[i].strip() + " "
 					vcard.add("fn")
-					vcard.fn.value = fn.strip().replace("  "," ")
+					vcard.fn.value = fn.replace("  "," ").strip()
 				model.append([vcard.fn.value, vcard, filename])
 			except:
 				break
