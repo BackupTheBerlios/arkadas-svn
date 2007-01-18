@@ -6,9 +6,9 @@ types = {
 	"EMAIL":"Email", "IM":"Username",
 	"NOTE":"Notes",
 	# address types
-	"ADR-0":"Postbox", "ADR-1":"Extended",
-	"ADR-2":"Street", "ADR-3":"City",
-	"ADR-4":"State", "ADR-5":"Zip", "ADR-6":"Country",
+	"BOX":"Postbox", "EXTENDED":"Extended",
+	"STREET":"Street", "CITY":"City",
+	"REGION":"State", "CODE":"ZIP", "COUNTRY":"Country",
 	# tel types
 	"VOICE":"Landline", "ISDN":"ISDN",
 	"CELL":"Mobile", "FAX":"Fax",
@@ -23,7 +23,7 @@ types = {
 	"X-YAHOO":"Yahoo", "X-ZEPHYR":"Zephyr",
 	}
 
-tel_types = ("VOICE", "ISDN", "CELL", "CAR", "VIDEO", "PAGER", "FAX", "MODEM", "BBS", "PCS")
+tel_types = ("VOICE", "ISDN", "CELL", "FAX", "PAGER", "CAR", "VIDEO", "MODEM", "BBS", "PCS")
 im_types = ("X-AIM", "X-GADU-GADU", "X-GROUPWISE", "X-ICQ", "X-IRC", "X-JABBER", "X-MSN", "X-NAPSTER", "X-YAHOO", "X-ZEPHYR")
 #--------
 # widgets
@@ -33,6 +33,7 @@ class CaptionField(gtk.HBox):
 		gtk.HBox.__init__(self, False, 2)
 		self.set_no_show_all(True)
 
+		self.field = None
 		self.content = content
 
 		# create type menus
@@ -122,10 +123,16 @@ class CaptionField(gtk.HBox):
 						newtype.append(key)
 					break
 
-		# preserve the "Preferred"-param
-		if "PREF" in paramlist: newtype.append("PREF")
+		# preserve the other params
+		for param in ("INTERNET", "X400", "DOM", "INTL", "POSTAL", "PARCEL", "PREF"):
+			if param in paramlist: newtype.append(param)
 
 		self.content.type_paramlist = newtype
+		if self.field is not None:
+			self.field.content.type_paramlist = newtype
+			if self.field.get_text() == self.field.empty_text: self.field.set_text("")
+			self.field.set_empty_text()
+			self.field.entry.grab_focus()
 		self.parse_paramlist()
 
 	def parse_paramlist(self):
@@ -151,11 +158,13 @@ class CaptionField(gtk.HBox):
 		self.label.set_markup("<b>%s</b>" % (text))
 
 class LabelField(gtk.HBox):
-	def __init__(self, content):
+	def __init__(self, content, use_content=True):
 		gtk.HBox.__init__(self, False)
 		self.set_no_show_all(True)
 
 		self.content = content
+		self.use_content = use_content
+		self.autosize = False
 
 		sizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
 
@@ -174,27 +183,40 @@ class LabelField(gtk.HBox):
 		self.pack_start(self.entry)
 		sizegroup.add_widget(self.entry)
 
-		self.entry.connect("focus-in-event", self.focus_changed, True)
-		self.entry.connect("focus-out-event", self.focus_changed, False)
-
-		if self.content.name in ("EMAIL", "URL"):
-			if self.content.name  == "EMAIL":
-				self.urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
-				self.urlbutton.connect("button_press_event", lambda w,e: browser_load("mailto:" + self.content.value, self.get_toplevel()))
-			else:
-				self.urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
-				self.urlbutton.connect("button_press_event", lambda w,e: browser_load(self.content.value, self.get_toplevel()))
-			self.labelbox.pack_end(self.urlbutton, False)
-			self.urlbutton.show()
-
 		self.show()
 		self.label.show()
 		self.entry.hide()
 
-		self.set_text(self.content.value)
+		if use_content:
+			if self.content.name in ("EMAIL", "URL"):
+				if self.content.name  == "EMAIL":
+					self.urlbutton = ImageButton(gtk.image_new_from_icon_name("email", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
+					self.urlbutton.connect("button_press_event", lambda w,e: browser_load("mailto:" + self.content.value, self.get_toplevel()))
+				else:
+					self.urlbutton = ImageButton(gtk.image_new_from_icon_name("browser", gtk.ICON_SIZE_MENU), gtk.gdk.color_parse("white"))
+					self.urlbutton.connect("button_press_event", lambda w,e: browser_load(self.content.value, self.get_toplevel()))
+				self.labelbox.pack_end(self.urlbutton, False)
+				self.urlbutton.show()
 
-		#if "X-" in type: empty_text = "IM"
-		self.empty_text = types.get("", "Empty")
+			self.set_text(self.content.value)
+			self.set_empty_text()
+		else:
+			self.set_text(self.content[0])
+			self.empty_text = self.content[1]
+
+		self.entry.connect("changed", self.entry_changed)
+		self.entry.connect("focus-in-event", self.focus_changed, True)
+		self.entry.connect("focus-out-event", self.focus_changed, False)
+
+	def set_empty_text(self):
+		if self.content.name.startswith("X-"): type = "IM"
+		elif self.content.name == "TEL":
+			for param in self.content.type_paramlist:
+				if param in tel_types:
+					type = param
+					break
+		else: type = self.content.name.upper()
+		self.empty_text = types.get(type, "Empty")
 
 	def set_text(self, text):
 		self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
@@ -203,6 +225,7 @@ class LabelField(gtk.HBox):
 	def get_text(self):
 		text = self.entry.get_text()
 		self.set_text(text)
+		if self.autosize: self.entry.set_width_chars(len(text))
 		return text
 
 	def set_editable(self, editable):
@@ -210,27 +233,38 @@ class LabelField(gtk.HBox):
 		self.entry.set_property("visible", editable)
 		self.focus_changed(None, None, not editable)
 
+	def set_autosize(self, autosize):
+		self.autosize = autosize
+		text = self.get_text().strip()
+		if self.autosize: self.entry.set_width_chars(len(text))
+		else: self.entry.set_width_chars(-1)
+
+	def entry_changed(self, widget):
+		text = self.get_text().strip()
+		if self.autosize: self.entry.set_width_chars(len(text))
+		if text == self.empty_text: text = ""
+
+		if self.use_content: self.content.value = text
+		else: self.content[0] = text
+
 	def focus_changed(self, widget, event, focus):
-		if not self.empty_text == "":
-			text = self.get_text().strip()
-			if focus:
-				if text == self.empty_text:
-					self.set_text("")
-					self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
-			else:
-				if text == "":
-					self.set_text(self.empty_text)
-					self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("darkgray"))
+		text = self.get_text().strip()
+		if focus:
+			if text == self.empty_text:
+				self.set_text("")
+				self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
+		else:
+			if text == "":
+				self.set_text(self.empty_text)
+				self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("darkgray"))
 
 class AddressField(gtk.Table):
-	def __init__(self, address, type):
-		gtk.Table.__init__(self, 4, 2)
+	def __init__(self, content):
+		gtk.Table.__init__(self)
 
 		self.set_no_show_all(True)
 
-		self.etype = type
-		self.address = address
-		self.widgetlist = 7 * [None]
+		self.content = content
 
 		self.build_interface()
 
@@ -238,46 +272,55 @@ class AddressField(gtk.Table):
 		self.show()
 
 	def build_interface(self):
-		for i in range(len(self.address)):
-			widget = LabelEntry(self.address[i], "", types["ADR-" + str(i)])
-			widget.set_editable(False)
-			if i == 3 or i == 4 or i == 5: widget.entry.set_width_chars(len(widget.get_text()))
-			widget.entry.connect("changed", self.changed, widget)
-			self.widgetlist[i] = widget
+		self.box = LabelField([self.content.value.box, types["BOX"]], False)
+		self.extended = LabelField([self.content.value.extended, types["EXTENDED"]], False)
+		self.street = LabelField([self.content.value.street, types["STREET"]], False)
+		self.city = LabelField([self.content.value.city, types["CITY"]], False)
+		self.region = LabelField([self.content.value.region, types["REGION"]], False)
+		self.code = LabelField([self.content.value.code, types["CODE"]], False)
+		self.country = LabelField([self.content.value.country, types["COUNTRY"]], False)
 
-		self.attach(self.widgetlist[2], 0, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[0], 0, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[5], 0, 1, 2, 3, gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[3], 1, 2, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[4], 2, 3, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
-		self.attach(self.widgetlist[6], 0, 3, 3, 4, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.city.set_autosize(True)
+		self.region.set_autosize(True)
+		self.code.set_autosize(True)
+
+
+		self.attach(self.street, 0, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.box, 0, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.country, 0, 3, 3, 4, gtk.EXPAND|gtk.FILL, gtk.FILL)
+
+		# american
+		self.attach(self.city, 0, 1, 2, 3, gtk.FILL, gtk.FILL)
+		self.attach(self.region, 1, 2, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		self.attach(self.code, 2, 3, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
+
+		# german, french
+		#self.attach(self.code, 0, 1, 2, 3, gtk.FILL, gtk.FILL)
+		#self.attach(self.city, 1, 2, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
+		#self.attach(self.region, 2, 3, 2, 3, gtk.EXPAND|gtk.FILL, gtk.FILL)
 
 	def set_editable(self, editable = False):
-		for widget in self.widgetlist:
-			num = self.widgetlist.index(widget)
-			widget.set_editable(editable)
-			if editable:
-				widget.show()
-				if num == 0: widget.set_text(self.address[num])
-			else:
-				if self.address[num] == "":
-					widget.hide()
-				else:
+		for widget in self.get_children():
+			if type(widget) == LabelField:
+				widget.set_editable(editable)
+				if editable:
 					widget.show()
-					if num == 0: widget.set_text("Postbox " + self.address[num])
+				else:
+					if widget.get_text().strip() == "":
+						widget.hide()
+					else:
+						widget.show()
 
-	def changed(self, widget, parent):
-		num = self.widgetlist.index(parent)
-		text = parent.get_text()
-		if num == 0: text = text.replace("Postbox ", "")
-		if num == 3 or num == 4 or num == 5: widget.set_width_chars(len(text))
-		self.address[num] = text.strip()
 
-	def set_type(self, type):
-		self.etype = type
+		if not editable:
+			self.content.value.box = self.box.content[0]
+			self.content.value.extended = self.extended.content[0]
+			self.content.value.street = self.street.content[0]
+			self.content.value.city = self.city.content[0]
+			self.content.value.region = self.region.content[0]
+			self.content.value.code = self.code.content[0]
+			self.content.value.country = self.country.content[0]
 
-	def get_type(self):
-		return self.etype
 
 class EventVBox(gtk.VBox):
 	def __init__(self):
@@ -337,7 +380,7 @@ def unescape(s):
 	return s
 
 def has_child(vcard, childName, childNumber = 0):
-	return len(vcard.getChildValue(childName, "", childNumber)) > 0
+	return len(str(vcard.getChildValue(childName, "", childNumber))) > 0
 
 def get_pixbuf_of_size(pixbuf, size, crop = False):
 	image_width = pixbuf.get_width()

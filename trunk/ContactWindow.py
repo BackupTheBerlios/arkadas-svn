@@ -34,7 +34,7 @@ class ContactWindow(gtk.VBox):
 
 		# display
 		self.scrolledwindow = gtk.ScrolledWindow()
-		self.scrolledwindow.set_policy(gtk.POLICY_NEVER,gtk.POLICY_AUTOMATIC)
+		self.scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
 		self.pack_start(self.scrolledwindow)
 
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
@@ -101,6 +101,7 @@ class ContactWindow(gtk.VBox):
 				# LabelEntry
 				field = LabelField(content)
 				field.set_editable(False)
+				caption.field = field
 
 			hbox.pack_start(field)
 			box.add(hbox)
@@ -238,8 +239,7 @@ class ContactWindow(gtk.VBox):
 				for child in vcard.contents[im.lower()]:
 					add_label(self.imbox, child)
 		# FIELD - address
-		#add_labels_by_name(self.adrbox, "adr")
-		#add_labels_by_name(self.workadrbox, "adr", True)
+		add_labels_by_name(self.adrbox, self.workadrbox, "adr")
 		# FIELD - birthday
 		if has_child(vcard, "bday"):
 			for child in vcard.contents["bday"]:
@@ -281,7 +281,12 @@ class ContactWindow(gtk.VBox):
 						# remove empty field
 						if type(field) == LabelField:
 							field.set_editable(state)
-							if field.get_text() == "": hbox.destroy() ; continue
+							if field.get_text() == "":
+								hbox.destroy() ; continue
+						elif type(field) == AddressField:
+							field.set_editable(state)
+							if str(field.content.value).strip().replace(",", "") == "":
+								hbox.destroy() ; continue
 						elif type(field) == gtk.TextView:
 							field.set_editable(state)
 
