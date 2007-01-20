@@ -244,7 +244,7 @@ class ContactWindow(gtk.VBox):
 			elif nametype == "WORK": box = self.add_label(self.worktelbox, content)
 		elif name == "EMAIL":
 			content = self.vcard.add("email")
-			content.type_paramlist = [nametype]
+			content.type_paramlist = [nametype, "INTERNET"]
 			if nametype == "HOME": box = self.add_label(self.emailbox, content)
 			elif nametype == "WORK": box = self.add_label(self.workemailbox, content)
 		elif name == "ADR":
@@ -254,7 +254,6 @@ class ContactWindow(gtk.VBox):
 			elif nametype == "WORK": box = self.add_label(self.workadrbox, content)
 		elif name == "URL":
 			content = self.vcard.add("url")
-			content.type_paramlist = ["INTERNET"]
 			box = self.add_label(self.urlbox, content)
 		elif name == "IM2":
 			content = self.vcard.add("x-aim")

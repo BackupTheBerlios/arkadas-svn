@@ -182,8 +182,7 @@ class MainWindow(gtk.Window):
 		vcard.add("email")
 		vcard.add("url")
 		vcard.tel.type_paramlist = ["HOME", "VOICE"]
-		vcard.email.type_paramlist = ["HOME"]
-		vcard.url.type_paramlist = ["HOME", "INTERNET"]
+		vcard.email.type_paramlist = ["HOME", "INTERNET"]
 		vcard.iter = self.contactData.append(["Unbekannt", vcard])
 		self.contactSelection.select_iter(vcard.iter)
 		self.view_contact(True)
@@ -308,12 +307,19 @@ def add_to_list(model, vcard):
 def sort_contacts(model, iter1, iter2, data):
 	vcard1 = model[iter1][1]
 	vcard2 = model[iter2][1]
-	f1 = "" ; f2 = ""
-	try:
-		f1 += vcard1.n.value.family
-		f1 += " " + vcard1.n.value.given
-		f2 += vcard2.n.value.family
-		f2 += " " + vcard2.n.value.given
-		return cmp(f1.strip().replace("  "," "),f2.strip().replace("  "," "))
-	except:
-		return 1
+	if type(vcard1) == vobject.base.Component and type(vcard2) == vobject.base.Component:
+		if vcard1.version.value == "3.0":
+			f1 = vcard1.n.value.family + " " + vcard1.n.value.given + " " + vcard1.n.value.additional
+		else:
+			n = vcard1.n.value.split(";")
+			f1 = n[0] + " " + n[1] + " " + n[2]
+
+		if vcard2.version.value == "3.0":
+			f2 = vcard2.n.value.family + " " + vcard2.n.value.given + " " + vcard2.n.value.additional
+		else:
+			n = vcard2.n.value.split(";")
+			f2 = n[0] + " " + n[1] + " " + n[2]
+
+		return cmp(f1.replace("  "," ").strip(), f2.replace("  "," ").strip())
+	else:
+		return 0
