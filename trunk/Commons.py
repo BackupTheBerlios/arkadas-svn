@@ -1,20 +1,43 @@
+__author__ = "Paul Johnson"
+__email__ = "thrillerator@googlemail.com"
+__version__ = "0.1"
+__license__ = """Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
+
+This file is part of Arkadas.
+
+Arkadas is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+Arkadas is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Arkadas; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+"""
+
 import gtk
 
 types = {
-	"HOME":"Home", "WORK":"Work",
-	"BDAY":"Birthday", "URL":"Website",
-	"EMAIL":"Email", "IM":"Username",
-	"NOTE":"Notes:",
+	"HOME":_("Home"), "WORK":_("Work"),
+	"BDAY":_("Birthday"), "URL":_("Website"),
+	"EMAIL":"Email", "ADR":_("Address"),
+	"IM":_("Username"), "IM2":"Instant Messaging",
+	"NOTE":_("Notes:"), "TEL":_("Phone"),
 	# address types
-	"BOX":"Postbox", "EXTENDED":"Extended",
-	"STREET":"Street", "CITY":"City",
-	"REGION":"State", "CODE":"ZIP", "COUNTRY":"Country",
+	"BOX":_("Postbox"), "EXTENDED":_("Extended"),
+	"STREET":_("Street"), "CITY":_("City"),
+	"REGION":_("State"), "CODE":_("ZIP"), "COUNTRY":_("Country"),
 	# tel types
-	"VOICE":"Landline", "ISDN":"ISDN",
-	"CELL":"Mobile", "FAX":"Fax",
-	"CAR":"Car", "VIDEO":"Video",
-	"PAGER":"Pager", "MODEM":"Modem",
-	"BBS":"BBS", "PCS":"PCS",
+	"VOICE":_("Landline"), "ISDN":_("ISDN"),
+	"CELL":_("Mobile"), "FAX":_("Fax"),
+	"CAR":_("Car"), "VIDEO":_("Video"),
+	"PAGER":_("Pager"), "MODEM":_("Modem"),
+	"BBS":_("BBS"), "PCS":_("PCS"),
 	# im types
 	"X-AIM":"AIM", "X-GADU-GADU":"Gadu-Gadu",
 	"X-GROUPWISE":"GroupWise", "X-ICQ":"ICQ",
@@ -62,46 +85,40 @@ class CaptionField(gtk.HBox):
 			self.menu.append(menuitem)
 		self.menu.show_all()
 
-		# create label and remove button
-		color = gtk.gdk.color_parse("white")
+		self.removeButton = gtk.Button()
+		self.removeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU))
+		self.removeButton.set_relief(gtk.RELIEF_NONE)
+		if not self.content.name == "NOTE": self.pack_start(self.removeButton, False)
 
-		self.button = gtk.Button()
-		self.button.set_image(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU))
-		self.button.set_relief(gtk.RELIEF_NONE)
-		if not self.content.name == "NOTE": self.pack_start(self.button, False)
-		self.labelbox = gtk.EventBox()
-		self.labelbox.modify_bg(gtk.STATE_NORMAL, color)
+		self.labelButton = gtk.Button("")
+		self.labelButton.set_relief(gtk.RELIEF_NONE)
+		self.labelButton.set_alignment(1,0.5)
+		self.pack_start(self.labelButton)
+
 		self.label = gtk.Label()
 		self.label.set_alignment(1,0.5)
-		self.labelbox.add(self.label)
-		self.labelbox.show_all()
-		self.pack_start(self.labelbox)
-
-		# create right arrow (only for visual)
-		self.arrowbox = gtk.EventBox()
-		self.arrowbox.modify_bg(gtk.STATE_NORMAL, color)
-		self.arrowbox.connect("button-press-event", self.popup)
-		arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE)
-		arrow.show()
-		self.arrowbox.add(arrow)
+		self.label.set_sensitive(False)
+		self.pack_start(self.label)
 
 		if not self.content.name in ("NOTE", "BDAY", "URL"):
-			self.pack_start(self.arrowbox, False)
-			self.labelbox.connect("button-press-event", self.popup)
-			self.arrowbox.connect("button-press-event", self.popup)
+			self.labelButton.connect("clicked", self.popup)
 
 		self.parse_paramlist()
 		self.set_editable(False)
 		self.show()
 
 	def popup(self, *args):
-		if self.label.get_property("sensitive"):
+		if self.labelButton.get_property("visible"):
 			self.menu.popup(None, None, None, 1, 0)
 
 	def set_editable(self, editable):
-		self.button.set_property("visible",editable)
-		self.arrowbox.set_property("visible",editable)
-		self.label.set_sensitive(editable)
+		self.removeButton.set_property("visible", editable)
+		if not self.content.name == "NOTE":
+			self.labelButton.set_property("visible", editable)
+			self.label.set_property("visible", not editable)
+		else:
+			self.label.set_property("sensitive", editable)
+			self.label.show()
 
 	def menuitem_click(self, item):
 		paramlist = self.content.type_paramlist
@@ -155,7 +172,8 @@ class CaptionField(gtk.HBox):
 						if "WORK" in paramlist: text += " " + types["CELL"]
 						else: text = types["CELL"]
 
-		self.label.set_markup("<b>%s</b>" % (text))
+		self.labelButton.get_child().set_markup("<b>%s</b>" % text)
+		self.label.set_markup("<b>%s</b>" % text)
 
 class LabelField(gtk.HBox):
 	def __init__(self, content, use_content=True):
@@ -239,6 +257,10 @@ class LabelField(gtk.HBox):
 		if self.autosize: self.entry.set_width_chars(len(text))
 		else: self.entry.set_width_chars(-1)
 
+	def grab_focus(self):
+		if self.entry.get_property("visible"): self.entry.grab_focus()
+		else: self.label.grab_focus()
+
 	def entry_changed(self, widget):
 		text = self.get_text().strip()
 		if self.autosize: self.entry.set_width_chars(len(text))
@@ -321,6 +343,8 @@ class AddressField(gtk.Table):
 			self.content.value.code = self.code.content[0]
 			self.content.value.country = self.country.content[0]
 
+	def grab_focus(self):
+		self.street.grab_focus()
 
 class EventVBox(gtk.VBox):
 	def __init__(self):
@@ -451,6 +475,6 @@ def browser_load(docslink, parent = None):
 					try:
 						pid = subprocess.Popen(["opera", docslink]).pid
 					except:
-						error_dialog = gtk.MessageDialog(parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, "Unable to launch a suitable browser.")
+						error_dialog = gtk.MessageDialog(parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to launch a suitable browser."))
 						error_dialog.run()
 						error_dialog.destroy()

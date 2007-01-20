@@ -14,29 +14,8 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-__version__ = "0.1"
-__license__ = """Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
-
-This file is part of Arkadas.
-
-Arkadas is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-Arkadas is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with Arkadas; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-"""
-
 import sys, os, vobject
 import gtk, gobject, pango
-# local
 from Commons import *
 import ContactWindow
 
@@ -45,7 +24,7 @@ class MainWindow(gtk.Window):
 	def __init__(self, width=200, height=400):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 
-		self.set_title("Address Book")
+		self.set_title(_("Address Book"))
 		self.set_default_size(width, height)
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_geometry_hints(self, width, height)
@@ -64,13 +43,13 @@ class MainWindow(gtk.Window):
 
 	def build_interface(self):
 		actions = (
-			("NewContact", gtk.STOCK_NEW, None, None, "Create a new contact", self.newButton_click),
-			("DeleteContact", gtk.STOCK_DELETE, None, None, "Delete the selected contact", self.deleteButton_click),
-			("Preferences", gtk.STOCK_PREFERENCES, None, None, "Configure the application", None),
-			("About", gtk.STOCK_ABOUT, None, None, "About the application", self.about),
-			("CopyName", gtk.STOCK_COPY, "_Copy Fullname", None, None, None),
-			("CopyEmail", None, "Copy E_mail", None, None, None),
-			("CopyNumber", None, "Copy N_umber", None, None, None),
+			("NewContact", gtk.STOCK_NEW, None, None, _("Create a new contact"), self.newButton_click),
+			("DeleteContact", gtk.STOCK_DELETE, None, None, _("Delete the selected contact"), self.deleteButton_click),
+			("Preferences", gtk.STOCK_PREFERENCES, None, None, _("Configure the application"), None),
+			("About", gtk.STOCK_ABOUT, None, None, _("About the application"), self.about),
+			("CopyName", gtk.STOCK_COPY, _("_Copy Fullname"), None, None, None),
+			("CopyEmail", None, _("Copy E_mail"), None, None, None),
+			("CopyNumber", None, _("Copy N_umber"), None, None, None),
 			)
 
 		uiDescription = """
@@ -126,7 +105,7 @@ class MainWindow(gtk.Window):
 		hpaned.add1(scrolledwindow)
 
 		# contactlist
-		self.contactData = gtk.ListStore(str, gobject.TYPE_PYOBJECT, str)
+		self.contactData = gtk.ListStore(str, gobject.TYPE_PYOBJECT)
 		self.contactData.set_sort_func(0, sort_contacts, None)
 		self.contactData.set_sort_column_id(0, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
@@ -176,47 +155,62 @@ class MainWindow(gtk.Window):
 	def view_contact(self, edit = False):
 		if self.contactList.get_selection().count_selected_rows() > 0:
 			(model, iter) = self.contactList.get_selection().get_selected()
-			entry = model[iter][1]
-			self.contactView.build_interface(entry, edit)
+			vcard = model[iter][1]
+			if self.contactView.table is not None:
+				if self.contactView.saveButton.get_property("visible"):
+					text = "<big><b>%s</b></big>" % _("Save the changes to contact before closing?")
+					sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % unescape(self.contactView.vcard.fn.value)
+
+					msgbox = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE)
+					msgbox.set_title("Arkadas")
+					msgbox.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_SAVE, gtk.RESPONSE_OK)
+					msgbox.set_markup(text)
+					msgbox.format_secondary_markup(sec_text)
+
+					if msgbox.run() == gtk.RESPONSE_OK:
+						self.contactView.switch_mode(False, True)
+					msgbox.destroy()
+				self.contactView.table.destroy()
+			self.contactView.build_interface(vcard, edit)
 			self.contactView.show_all()
 
 	def newButton_click(self, widget):
-		pass
+		vcard = vobject.vCard()
+		vcard.add("n")
+		vcard.add("fn")
+		vcard.add("tel")
+		vcard.add("email")
+		vcard.add("url")
+		vcard.tel.type_paramlist = ["HOME", "VOICE"]
+		vcard.email.type_paramlist = ["HOME"]
+		vcard.url.type_paramlist = ["HOME", "INTERNET"]
+		vcard.iter = self.contactData.append(["Unbekannt", vcard])
+		self.contactSelection.select_iter(vcard.iter)
+		self.view_contact(True)
+		self.contactView.changeButton_click(None)
 
 	def deleteButton_click(self, widget):
-		def dialog_response(dialog, response_id):
-			if response_id == gtk.RESPONSE_OK:
+		if self.contactSelection.count_selected_rows() > 0:
+			(model, iter) = self.contactSelection.get_selected()
+			fullname = model[iter][0]
+			filename = model[iter][1].filename
+
+			text = "<big><b>%s</b></big>" % _("Remove Contact")
+			sec_text = _("You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?") % (fullname)
+
+			msgbox = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE)
+			msgbox.set_title("Arkadas")
+			msgbox.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, "Delete Contact", gtk.RESPONSE_OK)
+			msgbox.set_markup(text)
+			msgbox.format_secondary_markup(sec_text)
+
+			if msgbox.run() == gtk.RESPONSE_OK:
 				try:
 					 os.remove(filename)
 					 self.contactData.remove(iter)
 				except:
 					pass
-			dialog.destroy()
-
-		if self.contactSelection.count_selected_rows() > 0:
-			(model, iter) = self.contactSelection.get_selected()
-			fullname = model[iter][0]
-			filename = model[iter][2]
-			text = "<big><b>Remove Contact</b></big>\n\n"
-			text += "You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?" % (fullname)
-			dialog = gtk.Dialog("Arkadas", self, gtk.DIALOG_MODAL)
-			dialog.set_size_request(420, -1)
-			dialog.set_resizable(False)
-			dialog.set_has_separator(False)
-			dialog.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, "Delete Contact", gtk.RESPONSE_OK)
-			dialoghbox = gtk.HBox()
-			dialog.vbox.pack_start(dialoghbox, True, True, 6)
-			# dialog image
-			dialogimage = gtk.image_new_from_stock(gtk.STOCK_DIALOG_QUESTION, gtk.ICON_SIZE_DIALOG)
-			dialogimage.set_alignment(0.5, 0)
-			dialoghbox.pack_start(dialogimage, False, False, 10)
-			# dialog label
-			dialoglabel = gtk.Label()
-			dialoglabel.set_markup(text)
-			dialoglabel.set_line_wrap(True)
-			dialoghbox.pack_start(dialoglabel)
-			dialog.connect("response", dialog_response)
-			dialog.show_all()
+			msgbox.destroy()
 
 	def contactList_click(self, treeview, path, column):
 		self.view_contact(True)
@@ -230,8 +224,8 @@ class MainWindow(gtk.Window):
 
 	def contactSelection_change(self, selection):
 		x, y, width, height = self.get_allocation()
-		self.view_contact()
 		if selection.count_selected_rows() > 0:
+			self.view_contact()
 			if not self.view_visible:
 				self.resize(600, height)
 				self.contactView.show()
@@ -266,7 +260,7 @@ class MainWindow(gtk.Window):
 			pass
 		aboutdialog.set_name("Arkadas")
 		aboutdialog.set_version(__version__)
-		aboutdialog.set_comments("A lightweight GTK+ Contact-Manager based on vCards.")
+		aboutdialog.set_comments(_("A lightweight GTK+ Contact-Manager based on vCards."))
 		aboutdialog.set_license(__license__)
 		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <deejayrdm@gmail.com>"])
 		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
@@ -288,24 +282,27 @@ def load_contacts(path, model):
 	model.clear()
 	# read all files in folder
 	for file in os.listdir(path):
-		if file[-3:] != "vcf": continue
 		filename = os.path.join(path, file)
 		components = vobject.readComponents(open(filename, "r"), False, True, True)
 		while(True):
 			try:
 				# create vcard-object
 				vcard = components.next()
-				# get fullname, else make fullname from name
-				if not has_child(vcard, "fn"):
-					fn = ""
-					n = vcard.n.value.split(";")
-					for i in (3,1,2,0,4):
-						fn += n[i].strip() + " "
-					vcard.add("fn")
-					vcard.fn.value = fn.replace("  "," ").strip()
-				model.append([vcard.fn.value, vcard, filename])
+				vcard.filename = filename
+				add_to_list(model, vcard)
 			except:
 				break
+
+def add_to_list(model, vcard):
+	# get fullname, else make fullname from name
+	if not has_child(vcard, "fn"):
+		fn = ""
+		n = vcard.n.value.split(";")
+		for i in (3,1,2,0,4):
+			fn += n[i].strip() + " "
+		vcard.add("fn")
+		vcard.fn.value = fn.replace("  "," ").strip()
+	vcard.iter = model.append([vcard.fn.value, vcard])
 
 # weird sort stuff
 def sort_contacts(model, iter1, iter2, data):
