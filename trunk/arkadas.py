@@ -20,7 +20,7 @@ along with Arkadas; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import sys, os, vobject
+import sys, os, vobject, gc
 import gtk, gobject, pango
 
 types = {
@@ -271,7 +271,7 @@ class MainWindow(gtk.Window):
 		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
 		gtk.about_dialog_set_url_hook(show_website, "http://arkadas.berlios.de")
 		aboutdialog.set_website_label("http://arkadas.berlios.de")
-		large_icon = gtk.gdk.pixbuf_new_from_file("arkadas.png")
+		large_icon = gtk.gdk.pixbuf_new_from_file(find_path("arkadas.png"))
 		aboutdialog.set_logo(large_icon)
 		aboutdialog.connect("response", close_about)
 		aboutdialog.connect("delete_event", close_about)
@@ -446,28 +446,40 @@ class ContactWindow(gtk.VBox):
 				loader = gtk.gdk.PixbufLoader()
 				loader.write(data)
 				loader.close()
-				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64, True)
+				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
 				self.hasphoto = True
 			except:
-				pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
+				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
 				self.hasphoto = False
 		else:
-			pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
+			pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
 			self.hasphoto = False
 
 		hbox = gtk.HBox()
 		self.hsizegroup.add_widget(hbox)
 		self.photohbox.pack_start(hbox,False)
 
-		eventbox = gtk.EventBox()
-		eventbox.connect("enter-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2)))
-		eventbox.connect("leave-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(None))
-		self.tooltips.set_tip(eventbox, _("Click to change image"))
-		hbox.pack_end(eventbox, False)
+		buttonvbox = gtk.VBox()
+		hbox.pack_start(buttonvbox)
+
+		self.imagechangeButton = gtk.Button()
+		self.imagechangeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU))
+		self.imagechangeButton.set_no_show_all(True)
+		self.tooltips.set_tip(self.imagechangeButton, _("Change photo"))
+		buttonvbox.pack_start(self.imagechangeButton, False)
+
+		self.imageremoveButton = gtk.Button()
+		self.imageremoveButton.set_image(gtk.image_new_from_stock(gtk.STOCK_DELETE, gtk.ICON_SIZE_MENU))
+		self.imageremoveButton.set_no_show_all(True)
+		self.tooltips.set_tip(self.imageremoveButton, _("Remove photo"))
+		buttonvbox.pack_start(self.imageremoveButton, False)
 
 		photo = gtk.Image()
 		photo.set_from_pixbuf(pixbuf)
-		eventbox.add(photo)
+		hbox.pack_end(photo, False)
+
+		self.imagechangeButton.connect("clicked", self.imagechangeButton_click, photo)
+		self.imageremoveButton.connect("clicked", self.imageremoveButton_click, photo)
 
 		titlevbox = gtk.VBox()
 		self.photohbox.pack_start(titlevbox, True, True, 2)
@@ -497,9 +509,8 @@ class ContactWindow(gtk.VBox):
 		self.changeButton = gtk.Button()
 		self.changeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_EDIT, gtk.ICON_SIZE_MENU))
 		self.changeButton.set_no_show_all(True)
-		self.changeButton.set_property("visible", edit)
 		self.changeButton.connect("clicked", self.changeButton_click)
-		self.tooltips.set_tip(self.changeButton, _("Click to change fullname"))
+		self.tooltips.set_tip(self.changeButton, _("Change name"))
 		self.photohbox.pack_start(self.changeButton, False)
 
 		self.photohbox.show_all()
@@ -534,8 +545,6 @@ class ContactWindow(gtk.VBox):
 		self.table.show()
 
 		self.switch_mode(edit)
-
-
 
 	#---------------
 	# event funtions
@@ -595,6 +604,74 @@ class ContactWindow(gtk.VBox):
 
 	def editButton_click(self, button):
 		self.switch_mode(True, False)
+
+	def imagechangeButton_click(self, button, image):
+		def update_preview(filechooser):
+			filename = filechooser.get_preview_filename()
+			pixbuf = None
+			try:
+				pixbuf = gtk.gdk.PixbufAnimation(filename).get_static_image()
+				width = pixbuf.get_width()
+				height = pixbuf.get_height()
+				if width > height:
+					pixbuf = pixbuf.scale_simple(128, int(float(height)/width*128), gtk.gdk.INTERP_HYPER)
+				else:
+					pixbuf = pixbuf.scale_simple(int(float(width)/height*128), 128, gtk.gdk.INTERP_HYPER)
+			except:
+				pass
+			if pixbuf == None:
+				pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, 1, 8, 128, 128)
+				pixbuf.fill(0x00000000)
+			preview.set_from_pixbuf(pixbuf)
+			have_preview = True
+			filechooser.set_preview_widget_active(have_preview)
+			del pixbuf
+
+		dialog = gtk.FileChooserDialog(title=_("Open Image"),action=gtk.FILE_CHOOSER_ACTION_OPEN,buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+		filter = gtk.FileFilter()
+		filter.set_name(_("Images"))
+		filter.add_pixbuf_formats()
+		dialog.add_filter(filter)
+		filter = gtk.FileFilter()
+		filter.set_name(_("All files"))
+		filter.add_pattern("*")
+		dialog.add_filter(filter)
+		preview = gtk.Image()
+		dialog.set_preview_widget(preview)
+		dialog.set_use_preview_label(False)
+		dialog.connect("update-preview", update_preview)
+		dialog.set_default_response(gtk.RESPONSE_OK)
+
+		if dialog.run() == gtk.RESPONSE_OK:
+			filename = dialog.get_preview_filename()
+			try:
+				imagefile = open(filename, "r")
+				data = imagefile.read()
+				imagefile.close()
+
+				loader = gtk.gdk.PixbufLoader()
+				loader.write(data)
+				loader.close()
+				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
+
+				self.photodata = data
+				self.photodatatype = "B64"
+				self.imageremoveButton.show()
+				self.hasphoto = True
+			except:
+				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
+				self.imageremoveButton.hide()
+				self.hasphoto = False
+			image.set_from_pixbuf(pixbuf)
+
+		dialog.destroy()
+		gc.collect()
+
+	def imageremoveButton_click(self, button, image):
+		pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
+		image.set_from_pixbuf(pixbuf)
+		self.hasphoto = False
+		button.hide()
 
 	def changeButton_click(self, button):
 		def add_label(text):
@@ -747,11 +824,14 @@ class ContactWindow(gtk.VBox):
 		dialog.connect("response", dialog_response)
 		dialog.show_all()
 
-	def switch_mode(self, state=False, save=False):
-		self.addButton.set_sensitive(state)
-		self.saveButton.set_property("visible", state)
-		self.editButton.set_property("visible", not state)
-		self.changeButton.set_property("visible", state)
+	def switch_mode(self, edit=False, save=False):
+		self.edit = edit
+		self.addButton.set_sensitive(edit)
+		self.saveButton.set_property("visible", edit)
+		self.editButton.set_property("visible", not edit)
+		self.imagechangeButton.set_property("visible", edit)
+		self.imageremoveButton.set_property("visible", edit and self.hasphoto)
+		self.changeButton.set_property("visible", edit)
 
 		if save:
 			import os, vobject
@@ -787,10 +867,10 @@ class ContactWindow(gtk.VBox):
 					if type(hbox) == gtk.HBox:
 						# get caption & field
 						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
-						caption.set_editable(state)
+						caption.set_editable(edit)
 
 						if type(field) == LabelField:
-							field.set_editable(state)
+							field.set_editable(edit)
 							# remove empty field
 							if field.get_text() == "":
 								hbox.destroy()
@@ -798,7 +878,7 @@ class ContactWindow(gtk.VBox):
 							if save:
 								new_vcard.add(field.content)
 						elif type(field) == AddressField:
-							field.set_editable(state)
+							field.set_editable(edit)
 							# remove empty field
 							if str(field.content.value).strip().replace(",", "") == "":
 								hbox.destroy()
@@ -806,7 +886,7 @@ class ContactWindow(gtk.VBox):
 							if save:
 								new_vcard.add(field.content)
 						elif type(field) == gtk.TextView:
-							field.set_editable(state)
+							field.set_editable(edit)
 							textbuffer = field.get_buffer()
 							start, end = textbuffer.get_bounds()
 							text = textbuffer.get_text(start, end).strip()
@@ -865,7 +945,7 @@ class ContactWindow(gtk.VBox):
 			# LabelEntry
 			field = LabelField(content)
 			field.set_editable(False)
-			caption.set_field(field)
+			caption.field = field
 
 		hbox.pack_start(field)
 		box.add(hbox)
@@ -881,7 +961,6 @@ class CaptionField(gtk.HBox):
 
 		self.field = None
 		self.content = content
-		self.sizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_VERTICAL)
 
 		# create type menus
 		self.menu = gtk.Menu()
@@ -922,7 +1001,6 @@ class CaptionField(gtk.HBox):
 		self.label = gtk.Label()
 		self.label.set_alignment(1,0.5)
 		self.label.set_sensitive(False)
-		self.sizegroup.add_widget(self.label)
 		self.pack_start(self.label)
 
 		if not self.content.name in ("NOTE", "BDAY", "URL"):
@@ -935,10 +1013,6 @@ class CaptionField(gtk.HBox):
 	def popup(self, *args):
 		if self.labelButton.get_property("visible"):
 			self.menu.popup(None, None, None, 1, 0)
-
-	def set_field(self, field):
-		self.field = field
-		self.sizegroup.add_widget(field)
 
 	def set_editable(self, editable):
 		self.removeButton.set_property("visible", editable)
@@ -1017,23 +1091,29 @@ class LabelField(gtk.HBox):
 
 		self.labelbox = gtk.HBox(False, 2)
 		self.pack_start(self.labelbox)
-		if self.content.name in ("EMAIL", "URL"):
-			self.label = gtk.LinkButton("")
-			self.label.set_alignment(0,0.5)
-			self.label.set_relief(gtk.RELIEF_NORMAL)
-			if self.content.name  == "EMAIL":
-				self.label.connect("clicked", lambda b: browser_load("mailto:" + self.content.value, self.get_toplevel()))
-			else:
-				self.label.connect("clicked", lambda b: browser_load(self.content.value, self.get_toplevel()))
-			self.link = True
-		else:
-			self.label = gtk.Label()
-			self.label.set_selectable(True)
-			self.label.set_alignment(0,0.5)
-			self.label.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
-			self.link = False
 
-		self.labelbox.pack_start(self.label)
+		self.label = gtk.Label()
+		self.label.set_alignment(0,0.5)
+
+		if use_content:
+			if self.content.name in ("EMAIL", "URL"):
+				self.eventbox = gtk.EventBox()
+				self.eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+				self.eventbox.add(self.label)
+				self.eventbox.show()
+				self.eventbox.connect("enter-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2)))
+				self.eventbox.connect("leave-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(None))
+				self.link = True
+				self.labelbox.pack_start(self.eventbox, False)
+			else:
+				self.link = False
+				self.label.set_selectable(True)
+				self.labelbox.pack_start(self.label)
+		else:
+			self.link = False
+			self.label.set_selectable(True)
+			self.labelbox.pack_start(self.label)
+
 		sizegroup.add_widget(self.labelbox)
 
 		self.entry = gtk.Entry()
@@ -1069,8 +1149,11 @@ class LabelField(gtk.HBox):
 
 	def set_text(self, text):
 		if self.link:
-			self.label.set_label(text)
-			self.label.set_uri(text)
+			self.label.set_markup("<span foreground=\"blue\"><u>%s</u></span>" % text)
+			url = text
+			if self.content.name  == "EMAIL":
+				url = "mailto:" + url
+			self.eventbox.connect("button-press-event", lambda w,e: browser_load(url, self.get_toplevel()))
 		else:
 			self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
 
@@ -1342,8 +1425,20 @@ def browser_load(docslink, parent = None):
 						error_dialog.run()
 						error_dialog.destroy()
 
+def find_path(filename):
+	if os.path.exists(os.path.join(sys.prefix, 'share', 'pixmaps', filename)):
+		full_filename = os.path.join(sys.prefix, 'share', 'pixmaps', filename)
+	elif os.path.exists(os.path.join(os.path.split(__file__)[0], filename)):
+		full_filename = os.path.join(os.path.split(__file__)[0], filename)
+	elif os.path.exists(os.path.join(os.path.split(__file__)[0], 'pixmaps', filename)):
+		full_filename = os.path.join(os.path.split(__file__)[0], 'pixmaps', filename)
+	elif os.path.exists(os.path.join(os.path.split(__file__)[0], 'share', filename)):
+			full_filename = os.path.join(os.path.split(__file__)[0], 'share', filename)
+	elif os.path.exists(os.path.join(__file__.split('/lib')[0], 'share', 'pixmaps', filename)):
+			full_filename = os.path.join(__file__.split('/lib')[0], 'share', 'pixmaps', filename)
+	return full_filename
+
 def uuid():
-	import os
 	pipe = os.popen('uuidgen', 'r')
 	if pipe:
 		data = pipe.readline().strip("\r\n")
