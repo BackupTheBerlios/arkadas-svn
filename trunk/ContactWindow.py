@@ -14,7 +14,6 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-import datetime, base64, urllib
 import gtk, gobject, pango
 from Commons import *
 
@@ -118,16 +117,21 @@ class ContactWindow(gtk.VBox):
 
 		# FIELD - photo
 		if has_child(self.vcard, "photo"):
-			date = None
+			data = None
+			# load data or decode data
 			if "VALUE" in self.vcard.photo.params:
 				try:
+					import urllib
 					url = urllib.urlopen(self.vcard.photo.value)
 					data = url.read()
 					url.close()
 				except:
 					pass
+				self.photodatatype = "URI"
 			elif "ENCODING" in self.vcard.photo.params:
 				data = self.vcard.photo.value
+				self.photodatatype = "B64"
+			# try to load photo
 			try:
 				loader = gtk.gdk.PixbufLoader()
 				loader.write(data)
@@ -140,6 +144,7 @@ class ContactWindow(gtk.VBox):
 		else:
 			pixbuf = get_pixbuf_of_size_from_file("no-photo.png", 64)
 			self.hasphoto = False
+		if self.hasphoto: self.photodata = data
 
 		hbox = gtk.HBox()
 		self.hsizegroup.add_widget(hbox)
@@ -214,6 +219,8 @@ class ContactWindow(gtk.VBox):
 		self.table.show()
 
 		self.switch_mode(edit)
+
+
 
 	#---------------
 	# event funtions
@@ -431,6 +438,25 @@ class ContactWindow(gtk.VBox):
 		self.editButton.set_property("visible", not state)
 		self.changeButton.set_property("visible", state)
 
+		if save:
+			import os, vobject
+			new_vcard = vobject.vCard()
+			if self.vcard.version.value == "3.0":
+				new_vcard.add(self.vcard.n)
+			else:
+				n = self.vcard.n.value.split(";")
+				new_vcard.add("n")
+				new_vcard.n.value = vobject.vcard.Name(n[0], n[1], n[2], n[3], n[4])
+			new_vcard.add(self.vcard.fn)
+
+			if self.hasphoto:
+				photo = new_vcard.add("photo")
+				if self.photodatatype == "URI":
+					photo.value_param = "URI"
+				else:
+					photo.encoding_param = "b"
+				photo.value = self.photodata
+
 		for child in self.table.get_children():
 			if type(child) == EventVBox:
 				for hbox in child.get_children():
@@ -438,20 +464,53 @@ class ContactWindow(gtk.VBox):
 						# get caption & field
 						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
 						caption.set_editable(state)
-						# remove empty field
+
 						if type(field) == LabelField:
 							field.set_editable(state)
+							# remove empty field
 							if field.get_text() == "":
-								hbox.destroy() ; continue
+								hbox.destroy()
+								continue
+							if save:
+								new_vcard.add(field.content)
 						elif type(field) == AddressField:
 							field.set_editable(state)
+							# remove empty field
 							if str(field.content.value).strip().replace(",", "") == "":
-								hbox.destroy() ; continue
+								hbox.destroy()
+								continue
+							if save:
+								new_vcard.add(field.content)
 						elif type(field) == gtk.TextView:
 							field.set_editable(state)
+							textbuffer = field.get_buffer()
+							start_iter = textbuffer.get_start_iter()
+							end_iter = textbuffer.get_end_iter()
+							text = textbuffer.get_text(start_iter, end_iter).strip()
+							if save and len(text) > 0:
+								new_vcard.add("note")
+								new_vcard.note.value = escape(text)
 
 		if save:
-			self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
+			try:
+				iter = self.vcard.iter
+				path = os.path.expanduser("~/Contacts")
+				filename = os.path.join(path, unescape(self.vcard.fn.value) + ".vcf")
+
+				if not filename == self.vcard.filename:
+					os.remove(self.vcard.filename)
+
+				new_file = open(filename, "w")
+				new_file.write(new_vcard.serialize())
+				new_file.close()
+
+				self.vcard = new_vcard
+
+				self.vcard.filename = filename
+				self.vcard.iter = iter
+				self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
+			except:
+				raise
 
 	def add_labels_by_name(self, box, workbox, name):
 		if has_child(self.vcard, name):
@@ -475,12 +534,7 @@ class ContactWindow(gtk.VBox):
 		elif content.name == "NOTE":
 			# multiline label
 			textbuffer = gtk.TextBuffer()
-			textbuffer.set_text(content.value)
-			tag_table = textbuffer.get_tag_table()
-			tag = gtk.TextTag()
-			tag.set_property("foreground", "black")
-			tag_table.add(tag)
-			textbuffer.apply_tag(tag, textbuffer.get_start_iter(), textbuffer.get_end_iter())
+			textbuffer.set_text(unescape(content.value))
 			field = gtk.TextView(textbuffer)
 			field.set_wrap_mode(gtk.WRAP_WORD)
 			field.set_editable(False)

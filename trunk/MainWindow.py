@@ -47,9 +47,9 @@ class MainWindow(gtk.Window):
 			("DeleteContact", gtk.STOCK_DELETE, None, None, _("Delete the selected contact"), self.deleteButton_click),
 			("Preferences", gtk.STOCK_PREFERENCES, None, None, _("Configure the application"), None),
 			("About", gtk.STOCK_ABOUT, None, None, _("About the application"), self.about),
-			("CopyName", gtk.STOCK_COPY, _("_Copy Fullname"), None, None, None),
-			("CopyEmail", None, _("Copy E_mail"), None, None, None),
-			("CopyNumber", None, _("Copy N_umber"), None, None, None),
+			("CopyName", gtk.STOCK_COPY, _("_Copy Fullname"), None, None, lambda w: self.copy_click(w, "fn")),
+			("CopyEmail", None, _("Copy E_mail"), None, None, lambda w: self.copy_click(w, "email")),
+			("CopyNumber", None, _("Copy N_umber"), None, None, lambda w: self.copy_click(w, "tel")),
 			)
 
 		uiDescription = """
@@ -84,6 +84,7 @@ class MainWindow(gtk.Window):
 		self.uiManager.insert_action_group(actionGroup, 0)
 
 		self.tooltips = gtk.Tooltips()
+		self.clipboard = gtk.Clipboard()
 
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
@@ -211,6 +212,42 @@ class MainWindow(gtk.Window):
 					pass
 			msgbox.destroy()
 
+	def about(self, widget):
+		def close_about(event, data=None):
+			aboutdialog.hide()
+			return True
+
+		def show_website(dialog, blah, link):
+			webbrowser.open_new(link)
+
+		aboutdialog = gtk.AboutDialog()
+		try:
+			aboutdialog.set_transient_for(self.window)
+			aboutdialog.set_modal(True)
+		except:
+			pass
+		aboutdialog.set_name("Arkadas")
+		aboutdialog.set_version(__version__)
+		aboutdialog.set_comments(_("A lightweight GTK+ Contact-Manager based on vCards."))
+		aboutdialog.set_license(__license__)
+		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <deejayrdm@gmail.com>"])
+		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
+		gtk.about_dialog_set_url_hook(show_website, "http://arkadas.berlios.de")
+		aboutdialog.set_website_label("http://arkadas.berlios.de")
+		large_icon = gtk.gdk.pixbuf_new_from_file("arkadas.png")
+		aboutdialog.set_logo(large_icon)
+		aboutdialog.connect("response", close_about)
+		aboutdialog.connect("delete_event", close_about)
+		aboutdialog.show_all()
+
+	def copy_click(self, widget, name):
+		(model, iter) = self.contactList.get_selection().get_selected()
+		vcard = model[iter][1]
+		value = vcard.getChildValue(name)
+		if value is not None:
+			if name == "fn": value = unescape(value)
+			self.clipboard.set_text(value)
+
 	def contactList_click(self, treeview, path, column):
 		self.view_contact(True)
 
@@ -243,34 +280,6 @@ class MainWindow(gtk.Window):
 			self.uiManager.get_widget("/Itemmenu/CopyEmail").hide()
 			self.uiManager.get_widget("/Itemmenu/CopyNumber").hide()
 
-	def about(self, widget):
-		def close_about(event, data=None):
-			aboutdialog.hide()
-			return True
-
-		def show_website(dialog, blah, link):
-			webbrowser.open_new(link)
-
-		aboutdialog = gtk.AboutDialog()
-		try:
-			aboutdialog.set_transient_for(self.window)
-			aboutdialog.set_modal(True)
-		except:
-			pass
-		aboutdialog.set_name("Arkadas")
-		aboutdialog.set_version(__version__)
-		aboutdialog.set_comments(_("A lightweight GTK+ Contact-Manager based on vCards."))
-		aboutdialog.set_license(__license__)
-		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <deejayrdm@gmail.com>"])
-		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
-		gtk.about_dialog_set_url_hook(show_website, "http://arkadas.berlios.de")
-		aboutdialog.set_website_label("http://arkadas.berlios.de")
-		large_icon = gtk.gdk.pixbuf_new_from_file("arkadas.png")
-		aboutdialog.set_logo(large_icon)
-		aboutdialog.connect("response", close_about)
-		aboutdialog.connect("delete_event", close_about)
-		aboutdialog.show_all()
-
 #--------------
 # help funtions
 #--------------
@@ -282,7 +291,7 @@ def load_contacts(path, model):
 	# read all files in folder
 	for file in os.listdir(path):
 		filename = os.path.join(path, file)
-		components = vobject.readComponents(open(filename, "r"), False, True, True)
+		components = vobject.readComponents(open(filename, "r"))
 		while(True):
 			try:
 				# create vcard-object
