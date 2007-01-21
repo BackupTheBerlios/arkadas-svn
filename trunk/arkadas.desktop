@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Arkadas
+Comment=A lightweight GTK+ Contact-Manager based on vCards
+Exec=arkadas
+Terminal=false
+Type=Application
+Icon=address-book
+Categories=GTK;Application;Office;
+StartupNotify=true
+Version=0.8
+Encoding=UTF-8

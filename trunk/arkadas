@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Arkadas, a lightweight GTK+ Contact-Manager based on vCards
+"""Arkadas, a lightweight GTK+ Contact-Manager based on vCards.
 """
 
 #	This file is part of Arkadas.
@@ -18,13 +18,17 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-import sys, os, gtk
+import sys, gtk
+
+try:
+	import vobject
+except ImportError:
+	sys.stderr.write(_("requires vobject.\n"))
+	sys.exit(1)
+
 
 import gettext
 gettext.install("arkadas", "/usr/share/locale", unicode=1)
-
-# local
-import MainWindow
 
 # Test pygtk version
 if gtk.pygtk_version < (2, 6, 0):
@@ -32,14 +36,6 @@ if gtk.pygtk_version < (2, 6, 0):
 	sys.exit(1)
 
 if __name__ == "__main__":
-	path = sys.path[0]
-	origpath = os.getcwd()
-	os.chdir(path)
-	sys.path.append(path)
-	mainwindow = MainWindow.MainWindow()
-	mainwindow.show()
-	try:
-		gtk.main()
-	except KeyboardInterrupt:
-		pass
-	os.chdir(origpath)
+	import arkadas
+	app = arkadas.MainWindow()
+	app.main()

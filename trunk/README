@@ -1,0 +1,17 @@
+Arkadas, a lightweight GTK+ Contact-Manager based on vCards.
+Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
+
+REQUIREMENTS:
+	(Required) PyGTK 2.6.0 or newer
+	(Required) GTK 2.6.0 or newer
+	(Required) vobject
+	(Building) python-dev (on some distros)
+
+INSTALLATION:
+	Just run 'python setup.py install' as root.
+
+FEATURES:
+	+ Opening and saving vCards
+	+ vCard creation
+	+ Display and inline editing
+	+ Many more to explore... (just a little rhyme)
