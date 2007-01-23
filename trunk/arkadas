@@ -18,24 +18,10 @@
 #	along with Arkadas; if not, write to the Free Software
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-import sys, gtk
-
-try:
-	import vobject
-except ImportError:
-	sys.stderr.write(_("requires vobject.\n"))
-	sys.exit(1)
-
-
-import gettext
-gettext.install("arkadas", "/usr/share/locale", unicode=1)
-
-# Test pygtk version
-if gtk.pygtk_version < (2, 6, 0):
-	sys.stderr.write(_("requires PyGTK 2.6.0 or newer.\n"))
-	sys.exit(1)
-
 if __name__ == "__main__":
 	import arkadas
 	app = arkadas.MainWindow()
-	app.main()
+	try:
+		app.main()
+	except KeyboardInterrupt:
+		pass
