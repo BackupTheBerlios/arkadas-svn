@@ -5,6 +5,7 @@ Exec=arkadas
 Terminal=false
 Type=Application
 Icon=address-book
+MimeType=application/vcard;text/x-vcard;
 Categories=GTK;Application;Office;
 StartupNotify=true
 Version=0.8
