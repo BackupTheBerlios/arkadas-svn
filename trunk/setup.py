@@ -28,4 +28,5 @@ setup(name="arkadas",
                     ("share/icons/hicolor/22x22/apps", ["icons/22x22/apps/address-book.png"]),
                     ("share/icons/hicolor/24x24/apps", ["icons/24x24/apps/address-book.png"]),
                     ("share/icons/hicolor/scalable/apps", ["icons/scalable/apps/address-book.svg"])],
+                    ("share/locale/de/LC_MESSAGES", ["locale/de/LC_MESSAGES/arkadas.mo"]),
         )
