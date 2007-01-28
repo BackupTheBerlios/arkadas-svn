@@ -122,7 +122,6 @@ class MainWindow(gtk.Window):
 			  <separator name="ST1"/>
 			  <toolitem action="Fullscreen"/>
 			  <separator name="ST2"/>
-			  <toolitem action="Preferences"/>
 			 </toolbar>
 			 <popup name="Itemmenu">
 			  <menuitem action="New"/>
@@ -133,7 +132,6 @@ class MainWindow(gtk.Window):
 			  <menuitem action="CopyEmail"/>
 			  <menuitem action="CopyNumber"/>
 			  <separator name="SM2"/>
-			  <menuitem action="Preferences"/>
 			  <menuitem action="About"/>
 			  <menuitem action="Quit"/>
 			 </popup>
@@ -328,6 +326,9 @@ class MainWindow(gtk.Window):
 				try:
 					os.remove(filename)
 					self.contactData.remove(iter)
+					first_iter = self.contactData.get_iter_first()
+					if first_iter is not None:
+						self.contactSelection.select_iter(first_iter)
 				except:
 					pass
 			msgbox.destroy()
@@ -892,10 +893,11 @@ class ContactWindow(gtk.VBox):
 			dialog.destroy()
 
 		dialog = gtk.Dialog(_("Edit Contact Name"), self.new_parent, gtk.DIALOG_MODAL)
-		dialog.set_resizable(False)
-		#dialog.set_size_request(420, -1)
-		dialog.set_has_separator(False)
 		dialog.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_APPLY, gtk.RESPONSE_OK)
+		dialog.set_resizable(False)
+		dialog.set_default_response(gtk.RESPONSE_OK)
+		dialog.set_has_separator(False)
+
 		# dialog table
 		table = gtk.Table(12, 2)
 		table.set_row_spacings(6)
@@ -904,20 +906,28 @@ class ContactWindow(gtk.VBox):
 
 		table.attach(add_label(_("Honoric _Prefixes:")), 0, 1, 0, 1)
 		entry4 = gtk.combo_box_entry_new_text()
+		entry4.child.set_activates_default(True)
 		for item in prefixes: entry4.append_text(item)
 		table.attach(entry4, 1, 2, 0, 1)
 
 		table.attach(add_label(_("_Given name:")), 0, 1, 1, 2)
-		entry1 = gtk.Entry() ; table.attach(entry1, 1, 2, 1, 2)
+		entry1 = gtk.Entry()
+		entry1.set_activates_default(True)
+		table.attach(entry1, 1, 2, 1, 2)
 
 		table.attach(add_label(_("_Additional names:")), 0, 1, 2, 3)
-		entry2 = gtk.Entry() ; table.attach(entry2, 1, 2, 2, 3)
+		entry2 = gtk.Entry()
+		entry2.set_activates_default(True)
+		table.attach(entry2, 1, 2, 2, 3)
 
 		table.attach(add_label(_("_Family names:")), 0, 1, 3, 4)
-		entry3 = gtk.Entry() ; table.attach(entry3, 1, 2, 3, 4)
+		entry3 = gtk.Entry()
+		entry3.set_activates_default(True)
+		table.attach(entry3, 1, 2, 3, 4)
 
 		table.attach(add_label(_("Honoric _Suffixes:")), 0, 1, 4, 5)
 		entry5 = gtk.combo_box_entry_new_text()
+		entry5.child.set_activates_default(True)
 		for item in suffixes: entry5.append_text(item)
 		table.attach(entry5, 1, 2, 4, 5)
 
@@ -939,13 +949,19 @@ class ContactWindow(gtk.VBox):
 		table.attach(gtk.HSeparator(), 0, 2, 8, 9, ypadding=6)
 
 		table.attach(add_label(_("_Nickname:")), 0, 1, 9, 10)
-		entry6 = gtk.Entry() ; table.attach(entry6, 1, 2, 9, 10)
+		entry6 = gtk.Entry()
+		entry6.set_activates_default(True)
+		table.attach(entry6, 1, 2, 9, 10)
 
 		table.attach(add_label(_("_Title/Role:")), 0, 1, 10, 11)
-		entry7 = gtk.Entry() ; table.attach(entry7, 1, 2, 10, 11)
+		entry7 = gtk.Entry()
+		entry7.set_activates_default(True)
+		table.attach(entry7, 1, 2, 10, 11)
 
 		table.attach(add_label(_("_Organization:")), 0, 1, 11, 12)
-		entry8 = gtk.Entry() ; table.attach(entry8, 1, 2, 11, 12)
+		entry8 = gtk.Entry()
+		entry8.set_activates_default(True)
+		table.attach(entry8, 1, 2, 11, 12)
 
 		if has_child(self.vcard, "n"):
 			entry1.set_text(self.vcard.n.value.given)
@@ -959,6 +975,7 @@ class ContactWindow(gtk.VBox):
 
 		combo.set_active(1)
 		combo_changed(combo)
+		entry1.grab_focus()
 
 		# events
 		dialog.connect("response", dialog_response)
@@ -1475,16 +1492,19 @@ class BirthdayField(gtk.HBox):
 
 		self.day = gtk.SpinButton(gtk.Adjustment(1, 1, 31, 1, 7), 1, 0)
 		self.day.set_numeric(True)
+		self.day.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.day, _('Day'))
 		self.datebox.pack_start(self.day, False)
 
 		self.month = gtk.SpinButton(gtk.Adjustment(1, 1, 12, 1, 3), 1, 0)
 		self.month.set_numeric(True)
+		self.month.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.month, _('Month'))
 		self.datebox.pack_start(self.month, False)
 
 		self.year = gtk.SpinButton(gtk.Adjustment(1950, 1900, 2100, 1, 10), 1, 0)
 		self.year.set_numeric(True)
+		self.year.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.year, _('Year'))
 		self.datebox.pack_start(self.year, False)
 
@@ -1616,7 +1636,10 @@ def bday_from_value(value):
 	return (None, None, None)
 
 def has_child(vcard, childName, childNumber = 0):
-	return len(str(vcard.getChildValue(childName, "", childNumber))) > 0
+	try:
+		return len(str(vcard.getChildValue(childName, "", childNumber))) > 0
+	except:
+		return False
 
 def get_pixbuf_of_size(pixbuf, size, crop = False):
 	image_width = pixbuf.get_width()
