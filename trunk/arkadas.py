@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import sys, os, gc
+import sys, os, datetime, gc
 import gtk, gobject, pango
 
 # Test pygtk version
@@ -75,13 +75,13 @@ order = ["TEL", "EMAIL", "URL", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "
 #--------------------
 class MainWindow(gtk.Window):
 
-	def __init__(self, width=600, height=400):
+	def __init__(self, width=500, height=300):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 
 		self.set_title(_("Address Book"))
 		self.set_default_size(width, height)
 		self.set_position(gtk.WIN_POS_CENTER)
-		self.set_geometry_hints(self, width, height)
+		#self.set_geometry_hints(self, width, height)
 
 		gtk.window_set_default_icon_name("address-book")
 
@@ -93,6 +93,13 @@ class MainWindow(gtk.Window):
 		self.show_all()
 
 	def build_interface(self):
+		# set fallback config dir
+		path = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+		self.config_dir = os.path.join(path, "arkadas")
+		if not os.path.exists(self.config_dir): os.mkdir(self.config_dir)
+		# set fallback contact dir
+		self.contact_dir = os.path.join(self.config_dir, "contacts")
+
 		actions = (
 			("New", gtk.STOCK_NEW, None, None, _("Create a new contact"), self.newButton_click),
 			("Open", gtk.STOCK_OPEN, None, None, _("Open and import contacts"), self.openButton_click),
@@ -201,7 +208,7 @@ class MainWindow(gtk.Window):
 		self.contactList.connect("popup-menu", self.contactList_popup_menu)
 		self.contactSelection.connect("changed", self.contactSelection_change)
 
-		load_contacts(os.path.expanduser("~/.config/Contacts"), self.contactData)
+		load_contacts(os.path.join(self.config_dir, "contacts"), self.contactData)
 
 		first_iter = self.contactData.get_iter_first()
 		if first_iter is not None:
@@ -240,6 +247,7 @@ class MainWindow(gtk.Window):
 
 			self.check_if_changed()
 			self.contactView.clear()
+			self.resize(500, 300)
 			self.contactView.load_contact(vcard, edit)
 
 	def newButton_click(self, widget):
@@ -256,7 +264,7 @@ class MainWindow(gtk.Window):
 		vcard.iter = self.contactData.append([_("Unnamed"), vcard])
 		self.contactSelection.select_iter(vcard.iter)
 		self.view_contact(True)
-		self.contactView.redoButton.hide()
+		self.contactView.undoButton.hide()
 		self.contactView.namechangeButton_click(None)
 
 	def openButton_click(self, widget):
@@ -294,6 +302,7 @@ class MainWindow(gtk.Window):
 					self.contactView.clear()
 					self.contactView.load_contact(vcard)
 			except:
+				raise
 				error_dialog = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to load the contact."))
 				error_dialog.run()
 				error_dialog.destroy()
@@ -417,17 +426,22 @@ class ContactWindow(gtk.VBox):
 		self.show_all()
 
 	def build_interface(self):
-		scrolledwindow = gtk.ScrolledWindow()
-		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
-		self.pack_start(scrolledwindow)
+		eventbox = gtk.EventBox()
 
-		self.viewport = gtk.Viewport()
-		self.viewport.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
-		scrolledwindow.add(self.viewport)
+		self.add(eventbox)
+
+		color = self.new_parent.contactList.get_style().base[gtk.STATE_NORMAL]
+		#eventbox.modify_bg(gtk.STATE_NORMAL, color)
+		eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+
+		frame = gtk.Frame()
+		frame.set_shadow_type(gtk.SHADOW_IN)
+		eventbox.add(frame)
 
 		self.table = gtk.VBox(False, 10)
 		self.table.set_border_width(10)
-		self.viewport.add(self.table)
+		#self.viewport.add(self.table)
+		frame.add(self.table)
 
 		# buttons
 		buttonhbox = gtk.HBox(False, 6)
@@ -439,16 +453,18 @@ class ContactWindow(gtk.VBox):
 		self.addButton.show()
 		self.addButton.get_child().get_child().get_children()[1].hide()
 		self.addButton.connect("clicked", self.addButton_click)
+		self.tooltips.set_tip(self.addButton, _("Add field"))
 		buttonhbox.pack_start(self.addButton, False)
 
 		self.countLabel = gtk.Label()
 		buttonhbox.pack_start(self.countLabel)
 
-		self.redoButton = gtk.Button("", gtk.STOCK_REDO)
-		self.redoButton.set_no_show_all(True)
-		self.redoButton.get_child().get_child().get_children()[1].hide()
-		self.redoButton.connect("clicked", self.redoButton_click)
-		buttonhbox.pack_start(self.redoButton, False)
+		self.undoButton = gtk.Button("", gtk.STOCK_UNDO)
+		self.undoButton.set_no_show_all(True)
+		self.undoButton.get_child().get_child().get_children()[1].hide()
+		self.undoButton.connect("clicked", self.undoButton_click)
+		self.tooltips.set_tip(self.undoButton, _("Undo changes"))
+		buttonhbox.pack_start(self.undoButton, False)
 
 		self.saveButton = gtk.Button("", gtk.STOCK_SAVE)
 		self.saveButton.set_no_show_all(True)
@@ -463,7 +479,7 @@ class ContactWindow(gtk.VBox):
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
 
 		# fieldholder
-		self.photobox = gtk.HBox(False, 2)
+		self.photobox = gtk.HBox(False, 6)
 		self.emailbox = EventVBox()
 		self.workemailbox = EventVBox()
 		self.telbox = EventVBox()
@@ -527,13 +543,13 @@ class ContactWindow(gtk.VBox):
 		buttonvbox.pack_start(self.imageremoveButton, False)
 
 		self.photoImage = gtk.Image()
-		hbox.pack_end(self.photoImage, False)
+		hbox.pack_end(self.photoImage, False, padding=2)
 
 		self.imagechangeButton.connect("clicked", self.imagechangeButton_click)
 		self.imageremoveButton.connect("clicked", self.imageremoveButton_click)
 
 		titlevbox = gtk.VBox()
-		self.photobox.pack_start(titlevbox, True, True, 2)
+		self.photobox.pack_start(titlevbox)
 
 		fullname = gtk.Label()
 		fullname.set_alignment(0,0)
@@ -633,8 +649,9 @@ class ContactWindow(gtk.VBox):
 				self.add_label(self.bdaybox, child)
 
 		# FIELD - note
-		self.notebox.pack_start(gtk.HSeparator(), False)
-		self.notebox.set_spacing(4)
+		self.notebox.set_spacing(6)
+		sep = gtk.HSeparator() ; sep.show()
+		self.notebox.pack_start(sep, False)
 		if not has_child(self.vcard, "note"): self.vcard.add("note")
 		self.add_label(self.notebox, self.vcard.note)
 
@@ -709,13 +726,15 @@ class ContactWindow(gtk.VBox):
 		field.set_editable(True)
 		field.grab_focus()
 
-	def redoButton_click(self, button):
+	def undoButton_click(self, button):
 		vcard = self.vcard
 		self.clear()
+		self.new_parent.resize(500, 300)
 		self.load_contact(vcard)
 
 	def saveButton_click(self, button):
 		if len(unescape(self.vcard.fn.value)) > 0:
+			self.new_parent.resize(500, 300)
 			self.switch_mode(False, True)
 		else:
 			errordialog = gtk.MessageDialog(self.new_parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Can't save, please enter a name."))
@@ -878,7 +897,8 @@ class ContactWindow(gtk.VBox):
 		dialog.set_has_separator(False)
 		dialog.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_APPLY, gtk.RESPONSE_OK)
 		# dialog table
-		table = gtk.Table(13, 2)
+		table = gtk.Table(12, 2)
+		table.set_row_spacings(6)
 		table.set_border_width(6)
 		dialog.vbox.add(table)
 
@@ -900,9 +920,6 @@ class ContactWindow(gtk.VBox):
 		entry5 = gtk.combo_box_entry_new_text()
 		for item in suffixes: entry5.append_text(item)
 		table.attach(entry5, 1, 2, 4, 5)
-
-		table.attach(gtk.Label(), 0, 2, 5, 6)
-
 
 		table.attach(add_label(_("For_matted name:")), 0, 1, 6, 7)
 
@@ -950,7 +967,7 @@ class ContactWindow(gtk.VBox):
 	def switch_mode(self, edit=False, save=False):
 		self.edit = edit
 		self.addButton.set_sensitive(edit)
-		self.redoButton.set_property("visible", edit)
+		self.undoButton.set_property("visible", edit)
 		self.saveButton.set_property("visible", edit)
 		self.editButton.set_property("visible", not edit)
 		self.imagechangeButton.set_property("visible", edit)
@@ -1041,8 +1058,7 @@ class ContactWindow(gtk.VBox):
 
 		try:
 			iter = self.vcard.iter
-			path = os.path.expanduser("~/.config/Contacts")
-			filename = os.path.join(path, unescape(self.vcard.fn.value) + ".vcf")
+			filename = os.path.join(self.new_parent.contact_dir, unescape(self.vcard.fn.value) + ".vcf")
 
 			if self.vcard.filename is not None:
 				if not filename == self.vcard.filename:
@@ -1062,6 +1078,7 @@ class ContactWindow(gtk.VBox):
 			if self.vcard.iter is not None:
 				self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
 		except:
+			raise
 			pass
 
 	def add_labels_by_name(self, box, workbox, name):
@@ -1071,7 +1088,7 @@ class ContactWindow(gtk.VBox):
 				else: self.add_label(box, child)
 
 	def add_label(self, box, content):
-		hbox = gtk.HBox(False, 4)
+		hbox = gtk.HBox(False, 6)
 
 		# caption
 		captionbox = gtk.VBox()
@@ -1088,14 +1105,16 @@ class ContactWindow(gtk.VBox):
 		elif content.name == "NOTE":
 			# multiline label
 			scrolledwindow = gtk.ScrolledWindow()
-			scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
 			scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_NEVER)
+			scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
 
 			textbuffer = gtk.TextBuffer()
 			textbuffer.set_text(unescape(content.value))
 			textview = gtk.TextView(textbuffer)
 			textview.set_wrap_mode(gtk.WRAP_WORD)
 			textview.set_editable(False)
+			textview.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+			textview.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 			scrolledwindow.add(textview)
 			field = scrolledwindow
 		else:
@@ -1157,7 +1176,6 @@ class CaptionField(gtk.HBox):
 
 		self.label = gtk.Label()
 		self.label.set_alignment(1,0.5)
-		self.label.set_sensitive(False)
 		self.pack_start(self.label)
 
 		if not self.content.name in ("NOTE", "BDAY", "URL"):
@@ -1179,7 +1197,6 @@ class CaptionField(gtk.HBox):
 		else:
 			self.labelButton.hide()
 			self.label.show()
-			self.label.set_sensitive(editable)
 
 	def menuitem_click(self, item):
 		paramlist = self.content.type_paramlist
@@ -1234,7 +1251,10 @@ class CaptionField(gtk.HBox):
 						else: text = types["CELL"]
 
 		self.labelButton.get_child().set_markup("<b>%s</b>" % text)
-		self.label.set_markup("<b>%s</b>" % text)
+		if name == "NOTE":
+			self.label.set_markup("<span foreground=\"black\"><b>%s</b></span>" % text)
+		else:
+			self.label.set_markup("<span foreground=\"dim grey\"><b>%s</b></span>" % text)
 
 class LabelField(gtk.HBox):
 	def __init__(self, content, use_content=True):
@@ -1470,23 +1490,20 @@ class BirthdayField(gtk.HBox):
 
 		year, month, day = bday_from_value(self.content.value)
 
-		self.day.set_value(day)
-		self.month.set_value(month)
-		self.year.set_value(year)
+		if year is not None:
+			self.day.set_value(day)
+			self.month.set_value(month)
+			self.year.set_value(year)
 
 	def set_editable(self, editable):
 		year = self.year.get_value_as_int()
 		month = self.month.get_value_as_int()
 		day = self.day.get_value_as_int()
 
-		if month < 10: month = "0" + str(month)
-		if day < 10: day = "0" + str(day)
+		date = datetime.date(year, month, day)
 
-		date = "%s-%s-%s" % (year, month, day)
-		self.content.value = date
-
-		date = "%s.%s.%s" % (month, day, year)
-		self.label.set_markup("<span foreground=\"black\">%s</span>" % date)
+		self.content.value = date.isoformat()
+		self.label.set_markup("<span foreground=\"black\">%s</span>" % date.strftime("%x"))
 
 		self.label.set_property("visible", not editable)
 		self.datebox.set_property("visible", editable)
@@ -1535,17 +1552,16 @@ def entities(s):
 
 def load_contacts(path, model):
 	# make path if dont exists
-	if os.path.exists(path) == False: os.mkdir(path)
+	if not os.path.exists(path): os.mkdir(path)
 	# clear all entrys
 	model.clear()
 	# read all files in folder
 	for curfile in os.listdir(path):
 		filename = os.path.join(path, curfile)
 		components = vobject.readComponents(file(filename, "r"))
-		while(True):
+		for vcard in components:
 			try:
 				# create vcard-object
-				vcard = components.next()
 				vcard.filename = filename
 				add_to_list(model, vcard)
 			except:
