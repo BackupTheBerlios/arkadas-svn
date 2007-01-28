@@ -1,0 +1,322 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2007-01-28 15:49+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: arkadas.py:41
+msgid "Home"
+msgstr ""
+
+#: arkadas.py:41
+msgid "Work"
+msgstr ""
+
+#: arkadas.py:42
+msgid "Year-Month-Day"
+msgstr ""
+
+#: arkadas.py:42
+msgid "Birthday"
+msgstr ""
+
+#: arkadas.py:43
+msgid "Website"
+msgstr ""
+
+#: arkadas.py:44
+msgid "Address"
+msgstr ""
+
+#: arkadas.py:45
+msgid "Username"
+msgstr ""
+
+#: arkadas.py:46
+msgid "Notes:"
+msgstr ""
+
+#: arkadas.py:46
+msgid "Phone"
+msgstr ""
+
+#: arkadas.py:48
+msgid "Postbox"
+msgstr ""
+
+#: arkadas.py:48
+msgid "Extended"
+msgstr ""
+
+#: arkadas.py:49
+msgid "Street"
+msgstr ""
+
+#: arkadas.py:49
+msgid "City"
+msgstr ""
+
+#: arkadas.py:50
+msgid "State"
+msgstr ""
+
+#: arkadas.py:50
+msgid "ZIP"
+msgstr ""
+
+#: arkadas.py:50
+msgid "Country"
+msgstr ""
+
+#: arkadas.py:52
+msgid "Landline"
+msgstr ""
+
+#: arkadas.py:52
+msgid "ISDN"
+msgstr ""
+
+#: arkadas.py:53
+msgid "Mobile"
+msgstr ""
+
+#: arkadas.py:53
+msgid "Fax"
+msgstr ""
+
+#: arkadas.py:54
+msgid "Car"
+msgstr ""
+
+#: arkadas.py:54
+msgid "Video"
+msgstr ""
+
+#: arkadas.py:55
+msgid "Pager"
+msgstr ""
+
+#: arkadas.py:55
+msgid "Modem"
+msgstr ""
+
+#: arkadas.py:56
+msgid "BBS"
+msgstr ""
+
+#: arkadas.py:56
+msgid "PCS"
+msgstr ""
+
+#: arkadas.py:81
+msgid "Address Book"
+msgstr ""
+
+#: arkadas.py:104
+msgid "Create a new contact"
+msgstr ""
+
+#: arkadas.py:105
+msgid "Open and import contacts"
+msgstr ""
+
+#: arkadas.py:106
+msgid "Delete the selected contact"
+msgstr ""
+
+#: arkadas.py:107
+msgid "Switch between fullscreen view"
+msgstr ""
+
+#: arkadas.py:108
+msgid "_Copy Fullname"
+msgstr ""
+
+#: arkadas.py:109
+msgid "Copy E_mail"
+msgstr ""
+
+#: arkadas.py:110
+msgid "Copy N_umber"
+msgstr ""
+
+#: arkadas.py:111
+msgid "Configure the application"
+msgstr ""
+
+#: arkadas.py:228
+msgid "Save the changes to contact before closing?"
+msgstr ""
+
+#: arkadas.py:229
+#, python-format
+msgid ""
+"If you don't save, changes you made to <b>%s</b> will be permanently lost."
+msgstr ""
+
+#: arkadas.py:262 arkadas.py:400
+msgid "Unnamed"
+msgstr ""
+
+#: arkadas.py:269
+msgid "Open Contact"
+msgstr ""
+
+#: arkadas.py:271
+msgid "vCard Files"
+msgstr ""
+
+#: arkadas.py:276 arkadas.py:776
+msgid "All Files"
+msgstr ""
+
+#: arkadas.py:279
+msgid "Import to contactlist"
+msgstr ""
+
+#: arkadas.py:304
+msgid "Unable to load the contact."
+msgstr ""
+
+#: arkadas.py:316
+msgid "Remove Contact"
+msgstr ""
+
+#: arkadas.py:317
+#, python-format
+msgid ""
+"You are about to remove <b>%s</b> from your contactlist.\n"
+"Do you want to continue?"
+msgstr ""
+
+#: arkadas.py:353
+msgid "A lightweight GTK+ Contact-Manager based on vCards."
+msgstr ""
+
+#: arkadas.py:375
+msgid "no contacts"
+msgstr ""
+
+#: arkadas.py:376
+msgid " contact"
+msgstr ""
+
+#: arkadas.py:377
+msgid " contacts"
+msgstr ""
+
+#: arkadas.py:457
+msgid "Add field"
+msgstr ""
+
+#: arkadas.py:467
+msgid "Undo changes"
+msgstr ""
+
+#: arkadas.py:537
+msgid "Change photo"
+msgstr ""
+
+#: arkadas.py:543
+msgid "Remove photo"
+msgstr ""
+
+#: arkadas.py:569
+msgid "Change name"
+msgstr ""
+
+#: arkadas.py:741
+msgid "Can't save, please enter a name."
+msgstr ""
+
+#: arkadas.py:770
+msgid "Open Image"
+msgstr ""
+
+#: arkadas.py:772
+msgid "Images"
+msgstr ""
+
+#: arkadas.py:895
+msgid "Edit Contact Name"
+msgstr ""
+
+#: arkadas.py:907
+msgid "Honoric _Prefixes:"
+msgstr ""
+
+#: arkadas.py:913
+msgid "_Given name:"
+msgstr ""
+
+#: arkadas.py:918
+msgid "_Additional names:"
+msgstr ""
+
+#: arkadas.py:923
+msgid "_Family names:"
+msgstr ""
+
+#: arkadas.py:928
+msgid "Honoric _Suffixes:"
+msgstr ""
+
+#: arkadas.py:934
+msgid "For_matted name:"
+msgstr ""
+
+#: arkadas.py:937
+msgid "Simple Name"
+msgstr ""
+
+#: arkadas.py:938
+msgid "Full Name"
+msgstr ""
+
+#: arkadas.py:939
+msgid "Reverse Name with Comma"
+msgstr ""
+
+#: arkadas.py:940
+msgid "Reverse Name"
+msgstr ""
+
+#: arkadas.py:951
+msgid "_Nickname:"
+msgstr ""
+
+#: arkadas.py:956
+msgid "_Title/Role:"
+msgstr ""
+
+#: arkadas.py:961
+msgid "_Organization:"
+msgstr ""
+
+#: arkadas.py:1496
+msgid "Day"
+msgstr ""
+
+#: arkadas.py:1502
+msgid "Month"
+msgstr ""
+
+#: arkadas.py:1508
+msgid "Year"
+msgstr ""
+
+#: arkadas.py:1695
+msgid "Unable to launch a suitable browser."
+msgstr ""
