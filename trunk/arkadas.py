@@ -352,7 +352,7 @@ class MainWindow(gtk.Window):
 		aboutdialog.set_version(__version__)
 		aboutdialog.set_comments(_("A lightweight GTK+ Contact-Manager based on vCards."))
 		aboutdialog.set_license(__license__)
-		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <deejayrdm@gmail.com>"])
+		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <1988er@gmail.com>"])
 		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
 		gtk.about_dialog_set_url_hook(lambda d,l: browser_load(l, self))
 		aboutdialog.set_website("http://arkadas.berlios.de")
