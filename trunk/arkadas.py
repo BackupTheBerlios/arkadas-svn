@@ -39,8 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 types = {
 	"HOME":_("Home"), "WORK":_("Work"),
-	"BDAY":_("Year-Month-Day"), "BDAY_CAP":_("Birthday"),
-	"URL":_("Website"),
+	"BDAY":_("Birthday"), "URL":_("Website"),
 	"EMAIL":"Email", "ADR":_("Address"),
 	"IM":_("Username"), "IM_CAP":"Instant Messaging",
 	"NOTE":_("Notes:"), "TEL":_("Phone"),
@@ -353,7 +352,7 @@ class MainWindow(gtk.Window):
 		aboutdialog.set_comments(_("A lightweight GTK+ Contact-Manager based on vCards."))
 		aboutdialog.set_license(__license__)
 		aboutdialog.set_authors(["Paul Johnson <thrillerator@googlemail.com>","Erdem Cakir <1988er@gmail.com>"])
-		#aboutdialog.set_translator_credits("de - Paul Johnson <thrillerator@googlemail.com>")
+		aboutdialog.set_translator_credits("de - Erdem Cakir <1988er@gmail.com>")
 		gtk.about_dialog_set_url_hook(lambda d,l: browser_load(l, self))
 		aboutdialog.set_website("http://arkadas.berlios.de")
 		aboutdialog.set_website_label("http://arkadas.berlios.de")
@@ -679,8 +678,8 @@ class ContactWindow(gtk.VBox):
 	def addButton_click(self, button):
 		# create type menus
 		self.addMenu = gtk.Menu()
-		for name in ("TEL", "EMAIL", "ADR", "URL", "IM_CAP", "BDAY_CAP"):
-			if not name in ("BDAY_CAP", "IM_CAP", "URL"):
+		for name in ("TEL", "EMAIL", "ADR", "URL", "IM_CAP", "BDAY"):
+			if not name in ("BDAY", "IM_CAP", "URL"):
 				menuitem = gtk.MenuItem(types[name])
 				menuitem.connect("activate", self.addMenu_itemclick, "HOME", name)
 				self.addMenu.append(menuitem)
@@ -717,7 +716,7 @@ class ContactWindow(gtk.VBox):
 			content = self.vcard.add("x-aim")
 			content.type_paramlist = ["HOME"]
 			box = self.add_label(self.imbox, content)
-		elif name == "BDAY_CAP":
+		elif name == "BDAY":
 			content = self.vcard.add("bday")
 			content.value = "1950-01-01"
 			box = self.add_label(self.bdaybox, content)
@@ -1257,7 +1256,6 @@ class CaptionField(gtk.HBox):
 
 		if name.startswith("X-"): text = types[name]
 		elif name == "URL": text = types["URL"]
-		elif name == "BDAY": text = types["BDAY_CAP"]
 		elif name == "NOTE": text = types["NOTE"]
 		else:
 			for tel in tel_types:
