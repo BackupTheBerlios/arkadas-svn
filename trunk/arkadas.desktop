@@ -1,12 +1,13 @@
 [Desktop Entry]
-Name=Arkadas
+Name=Address Book
+Name[de]=Adressbuch
 Comment=A lightweight GTK+ Contact-Manager based on vCards
+Comment[de]=Ein ressourcensparender GTK+ Kontakt-Verwalter, basierend auf vCards.
 Exec=arkadas
 Terminal=false
 Type=Application
 Icon=address-book
 MimeType=application/vcard;text/x-vcard;
-Categories=GTK;Application;Office;
+Categories=Application;Office;
 StartupNotify=true
-Version=0.8
 Encoding=UTF-8
