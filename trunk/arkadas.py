@@ -207,11 +207,7 @@ class MainWindow(gtk.Window):
 
 		load_contacts(os.path.join(self.config_dir, "contacts"), self.contactData)
 
-		first_iter = self.contactData.get_iter_first()
-		if first_iter is not None:
-			self.contactSelection.select_iter(first_iter)
-		self.contactSelection_change(None)
-
+		self.select_first()
 		self.contactList.grab_focus()
 
 	#---------------
@@ -221,6 +217,21 @@ class MainWindow(gtk.Window):
 		self.check_if_changed()
 		sys.exit()
 		return False
+
+	def select_first(self):
+		first_iter = self.contactData.get_iter_first()
+		if first_iter is not None:
+			self.contactSelection.select_iter(first_iter)
+
+	def check_if_new(self):
+		if self.contactView.is_new:
+			self.contactView.is_new = False
+			self.contactData.remove(self.contactView.vcard.iter)
+			self.contactView.switch_mode(False)
+			self.contactView.clear()
+			return True
+		else:
+			return False
 
 	def check_if_changed(self):
 		if self.contactView.edit:
@@ -242,6 +253,7 @@ class MainWindow(gtk.Window):
 			(model, iter) = self.contactSelection.get_selected()
 			vcard = model[iter][1]
 
+			self.check_if_new()
 			self.check_if_changed()
 			self.contactView.clear()
 			self.resize(500, 300)
@@ -261,6 +273,7 @@ class MainWindow(gtk.Window):
 		vcard.iter = self.contactData.append([_("Unnamed"), vcard])
 		self.contactSelection.select_iter(vcard.iter)
 		self.view_contact(True)
+		self.contactView.is_new = True
 		self.contactView.undoButton.hide()
 		self.contactView.namechangeButton_click(None)
 
@@ -307,7 +320,8 @@ class MainWindow(gtk.Window):
 		dialog.destroy()
 
 	def deleteButton_click(self, widget):
-		if self.contactSelection.count_selected_rows() > 0:
+		selected = self.contactSelection.count_selected_rows() > 0
+		if selected and not self.check_if_new():
 			(model, iter) = self.contactSelection.get_selected()
 			fullname = model[iter][0]
 			filename = model[iter][1].filename
@@ -325,9 +339,7 @@ class MainWindow(gtk.Window):
 				try:
 					os.remove(filename)
 					self.contactData.remove(iter)
-					first_iter = self.contactData.get_iter_first()
-					if first_iter is not None:
-						self.contactSelection.select_iter(first_iter)
+					self.select_first()
 				except:
 					pass
 			msgbox.destroy()
@@ -394,12 +406,6 @@ class MainWindow(gtk.Window):
 		self.uiManager.get_widget("/Itemmenu/CopyEmail").set_property("visible", selected)
 		self.uiManager.get_widget("/Itemmenu/CopyNumber").set_property("visible", selected)
 
-		if self.contactView.vcard is not None:
-			if self.contactView.vcard.iter is not None:
-				if self.contactData[self.contactView.vcard.iter][0] == _("Unnamed"):
-					self.contactData.remove(self.contactView.vcard.iter)
-					self.contactView.edit = False
-
 		if selected:
 			self.view_contact()
 		else:
@@ -419,8 +425,8 @@ class ContactWindow(gtk.VBox):
 		self.new_parent = parent
 		self.tooltips = parent.tooltips
 
-		self.vcard = None
 		self.edit = False
+		self.is_new = False
 
 		self.build_interface()
 		self.show_all()
@@ -888,6 +894,8 @@ class ContactWindow(gtk.VBox):
 				if has_child(self.vcard, "org"):
 					text += "\n" + unescape(self.vcard.org.value)
 				org.set_text(text)
+			else:
+				self.new_parent.check_if_new()
 
 			dialog.destroy()
 
@@ -1025,6 +1033,7 @@ class ContactWindow(gtk.VBox):
 		if save: self.save()
 
 	def save(self):
+		self.is_new = False
 		new_vcard = vobject.vCard()
 		new_vcard.add("prodid").value = "Arkadas 1.0"
 		if has_child(self.vcard, "uid"):
