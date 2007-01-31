@@ -174,7 +174,7 @@ class MainWindow(gtk.Window):
 		self.contactData.set_sort_column_id(0, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
 		self.contactList.set_headers_visible(False)
-		self.contactList.set_rules_hint(True)
+		#self.contactList.set_rules_hint(True)
 		self.contactList.set_enable_search(True)
 		self.contactSelection = self.contactList.get_selection()
 		self.scrolledwindow.add(self.contactList)
@@ -207,7 +207,7 @@ class MainWindow(gtk.Window):
 
 		load_contacts(os.path.join(self.config_dir, "contacts"), self.contactData)
 
-		self.select_first()
+		self.contactSelection.select_path((0,))
 		self.contactList.grab_focus()
 
 	#---------------
@@ -218,16 +218,11 @@ class MainWindow(gtk.Window):
 		sys.exit()
 		return False
 
-	def select_first(self):
-		first_iter = self.contactData.get_iter_first()
-		if first_iter is not None:
-			self.contactSelection.select_iter(first_iter)
-
 	def check_if_new(self):
 		if self.contactView.is_new:
 			self.contactView.is_new = False
 			self.contactData.remove(self.contactView.vcard.iter)
-			self.contactView.switch_mode(False)
+			self.contactView.editButton_click(edit=False)
 			self.contactView.clear()
 			return True
 		else:
@@ -245,7 +240,8 @@ class MainWindow(gtk.Window):
 			msgbox.format_secondary_markup(sec_text)
 
 			if msgbox.run() == gtk.RESPONSE_OK:
-				self.contactView.switch_mode(False, True)
+				self.contactView.editButton_click(edit=False)
+				self.contactView.saveButton_click()
 			msgbox.destroy()
 
 	def view_contact(self, edit = False):
@@ -339,7 +335,7 @@ class MainWindow(gtk.Window):
 				try:
 					os.remove(filename)
 					self.contactData.remove(iter)
-					self.select_first()
+					self.contactSelection.select_path((0,))
 				except:
 					pass
 			msgbox.destroy()
@@ -432,13 +428,12 @@ class ContactWindow(gtk.VBox):
 		self.show_all()
 
 	def build_interface(self):
+		#color = self.new_parent.contactList.get_style().base[gtk.STATE_NORMAL]
+
 		eventbox = gtk.EventBox()
-
-		self.add(eventbox)
-
-		color = self.new_parent.contactList.get_style().base[gtk.STATE_NORMAL]
 		#eventbox.modify_bg(gtk.STATE_NORMAL, color)
 		eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+		self.add(eventbox)
 
 		frame = gtk.Frame()
 		frame.set_shadow_type(gtk.SHADOW_IN)
@@ -446,21 +441,53 @@ class ContactWindow(gtk.VBox):
 
 		self.table = gtk.VBox(False, 10)
 		self.table.set_border_width(10)
-		#self.viewport.add(self.table)
 		frame.add(self.table)
+
+		hbox = gtk.HBox()
+		self.table.pack_end(hbox, False)
+
+		self.addButton = gtk.Button(_("Add field"))
+		self.addButton.set_no_show_all(True)
+		self.addButton.set_image(gtk.image_new_from_stock(gtk.STOCK_ADD, gtk.ICON_SIZE_MENU))
+		self.addButton.set_relief(gtk.RELIEF_NONE)
+		self.addButton.connect("clicked", self.addButton_click)
+		hbox.pack_start(self.addButton, False)
+
+		# create type menus
+		self.addMenu = gtk.Menu()
+		for name in ("TEL", "EMAIL", "ADR", "URL", "IM_CAP", "BDAY"):
+			if not name in ("BDAY", "IM_CAP", "URL"):
+				menuitem = gtk.MenuItem(types[name])
+				menuitem.connect("activate", self.addMenu_itemclick, "HOME", name)
+				self.addMenu.append(menuitem)
+				menuitem = gtk.MenuItem(types[name] + " (" + types["WORK"] + ")")
+				menuitem.connect("activate", self.addMenu_itemclick, "WORK", name)
+				self.addMenu.append(menuitem)
+			else:
+				menuitem = gtk.MenuItem(types[name])
+				menuitem.connect("activate", self.addMenu_itemclick, "", name)
+				self.addMenu.append(menuitem)
+		self.addMenu.show_all()
 
 		# buttons
 		buttonhbox = gtk.HBox(False, 6)
 		self.pack_end(buttonhbox, False)
 
-		self.addButton = gtk.Button("", gtk.STOCK_ADD)
-		self.addButton.set_sensitive(False)
-		self.addButton.set_no_show_all(True)
-		self.addButton.show()
-		self.addButton.get_child().get_child().get_children()[1].hide()
-		self.addButton.connect("clicked", self.addButton_click)
-		self.tooltips.set_tip(self.addButton, _("Add field"))
-		buttonhbox.pack_start(self.addButton, False)
+		self.prevButton = gtk.Button("", gtk.STOCK_GO_BACK)
+		self.prevButton.set_no_show_all(True)
+		self.prevButton.show()
+		self.prevButton.get_child().get_child().get_children()[1].hide()
+		self.prevButton.connect("clicked", self.prevButton_click)
+		self.tooltips.set_tip(self.prevButton, _("Goto previous contact"))
+		buttonhbox.pack_start(self.prevButton, False)
+
+		self.nextButton = gtk.Button("", gtk.STOCK_GO_FORWARD)
+		self.nextButton.set_no_show_all(True)
+		self.nextButton.show()
+		self.nextButton.get_child().get_child().get_children()[1].hide()
+		self.nextButton.connect("clicked", self.nextButton_click)
+		self.tooltips.set_tip(self.nextButton, _("Goto next contact"))
+		buttonhbox.pack_start(self.nextButton, False)
 
 		self.countLabel = gtk.Label()
 		buttonhbox.pack_start(self.countLabel)
@@ -567,12 +594,15 @@ class ContactWindow(gtk.VBox):
 		org.set_selectable(True)
 		titlevbox.pack_start(org)
 
+		buttonvbox = gtk.VBox()
+		self.photobox.pack_start(buttonvbox, False)
+
 		self.namechangeButton = gtk.Button()
 		self.namechangeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_EDIT, gtk.ICON_SIZE_MENU))
 		self.namechangeButton.set_no_show_all(True)
 		self.namechangeButton.connect("clicked", self.namechangeButton_click)
 		self.tooltips.set_tip(self.namechangeButton, _("Change name"))
-		self.photobox.pack_start(self.namechangeButton, False)
+		buttonvbox.pack_start(self.namechangeButton, False)
 
 	def load_contact(self, new_vcard, edit=False):
 		self.vcard = new_vcard
@@ -605,13 +635,11 @@ class ContactWindow(gtk.VBox):
 				loader.write(data)
 				loader.close()
 				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
-				self.hasphoto = True
+				self.has_photo = True
 			except:
-				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
-				self.hasphoto = False
+				self.has_photo = False
 		else:
-			pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
-			self.hasphoto = False
+			self.has_photo = False
 
 		if pixbuf is not None:
 			self.photoImage.set_from_pixbuf(pixbuf)
@@ -661,7 +689,7 @@ class ContactWindow(gtk.VBox):
 		if not has_child(self.vcard, "note"): self.vcard.add("note")
 		self.add_label(self.notebox, self.vcard.note)
 
-		self.switch_mode(edit)
+		self.editButton_click(edit=edit)
 
 	def clear(self):
 		self.vcard = None
@@ -673,7 +701,7 @@ class ContactWindow(gtk.VBox):
 			if type(box) == EventVBox:
 				for child in box.get_children():
 					child.destroy()
-		self.addButton.set_sensitive(False)
+		self.addButton.hide()
 		self.saveButton.set_sensitive(False)
 		self.editButton.set_sensitive(False)
 		gc.collect()
@@ -682,21 +710,6 @@ class ContactWindow(gtk.VBox):
 	# event funtions
 	#---------------
 	def addButton_click(self, button):
-		# create type menus
-		self.addMenu = gtk.Menu()
-		for name in ("TEL", "EMAIL", "ADR", "URL", "IM_CAP", "BDAY"):
-			if not name in ("BDAY", "IM_CAP", "URL"):
-				menuitem = gtk.MenuItem(types[name])
-				menuitem.connect("activate", self.addMenu_itemclick, "HOME", name)
-				self.addMenu.append(menuitem)
-				menuitem = gtk.MenuItem(types[name] + " (" + types["WORK"] + ")")
-				menuitem.connect("activate", self.addMenu_itemclick, "WORK", name)
-				self.addMenu.append(menuitem)
-			else:
-				menuitem = gtk.MenuItem(types[name])
-				menuitem.connect("activate", self.addMenu_itemclick, "", name)
-				self.addMenu.append(menuitem)
-		self.addMenu.show_all()
 		self.addMenu.popup(None, None, None, 3, 0)
 
 	def addMenu_itemclick(self, item, nametype, name):
@@ -732,23 +745,161 @@ class ContactWindow(gtk.VBox):
 		field.set_editable(True)
 		field.grab_focus()
 
+	def prevButton_click(self, button):
+		model = self.new_parent.contactData
+		selection = self.new_parent.contactSelection
+		cur_path = model.get_path(self.vcard.iter)[0]
+
+		if cur_path > 0:
+			selection.select_path((cur_path-1,))
+		else:
+			selection.select_path((len(model)-1,))
+
+	def nextButton_click(self, button):
+		model = self.new_parent.contactData
+		selection = self.new_parent.contactSelection
+		cur_path = model.get_path(self.vcard.iter)[0]
+
+		if cur_path < len(model)-1:
+			selection.select_path((cur_path+1,))
+		else:
+			selection.select_path((0,))
+
 	def undoButton_click(self, button):
 		vcard = self.vcard
 		self.clear()
 		self.new_parent.resize(500, 300)
 		self.load_contact(vcard)
 
-	def saveButton_click(self, button):
+	def editButton_click(self, button=None, edit=True):
+		self.edit = edit
+		self.addButton.set_property("visible", edit)
+		self.undoButton.set_property("visible", edit)
+		self.saveButton.set_property("visible", edit)
+		self.editButton.set_property("visible", not edit)
+		self.imagechangeButton.set_property("visible", edit)
+		self.imageremoveButton.set_property("visible", edit and self.has_photo)
+		self.namechangeButton.set_property("visible", edit)
+
+		if not self.has_photo:
+			if edit:
+				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
+				self.photoImage.set_from_pixbuf(pixbuf)
+			else:
+				self.photoImage.clear()
+
+		for child in self.table.get_children():
+			if type(child) == EventVBox:
+				for hbox in child.get_children():
+					if type(hbox) == gtk.HBox:
+						# get caption & field
+						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
+						caption.set_editable(edit)
+						if type(field) == LabelField:
+							field.set_editable(edit)
+							# remove empty field
+							if field.get_text() == "":
+								hbox.destroy()
+								continue
+						elif type(field) == AddressField:
+							field.set_editable(edit)
+							# remove empty field
+							if str(field.content.value).strip().replace(",", "") == "":
+								hbox.destroy()
+								continue
+						elif type(field) == BirthdayField:
+							field.set_editable(edit)
+						elif type(field) == gtk.ScrolledWindow:
+							if edit:
+								field.set_shadow_type(gtk.SHADOW_IN)
+								field.get_child().set_left_margin(2)
+								field.get_child().set_right_margin(2)
+							else:
+								field.set_shadow_type(gtk.SHADOW_NONE)
+								field.get_child().set_left_margin(0)
+								field.get_child().set_right_margin(2)
+							field.get_child().set_editable(edit)
+
+	def saveButton_click(self, button=None):
 		if len(unescape(self.vcard.fn.value)) > 0:
 			self.new_parent.resize(500, 300)
-			self.switch_mode(False, True)
+			self.editButton_click(edit=False)
+			self.is_new = False
+			new_vcard = vobject.vCard()
+			new_vcard.add("prodid").value = "Arkadas 1.0"
+			if has_child(self.vcard, "uid"):
+				new_vcard.add("uid").value = uuid()
+
+			if self.vcard.version.value == "3.0":
+				new_vcard.add(self.vcard.n)
+			else:
+				n = self.vcard.n.value.split(";")
+				new_vcard.add("n")
+				new_vcard.n.value = vobject.vcard.Name(n[0], n[1], n[2], n[3], n[4])
+			new_vcard.add(self.vcard.fn)
+			if has_child(self.vcard, "nickname"):
+				new_vcard.add(self.vcard.nickname)
+			if has_child(self.vcard, "org"):
+				new_vcard.add(self.vcard.org)
+			if has_child(self.vcard, "title"):
+				new_vcard.add(self.vcard.title)
+
+			if self.has_photo:
+				photo = new_vcard.add("photo")
+				if self.photodatatype == "URI":
+					photo.value_param = "URI"
+				else:
+					photo.encoding_param = "b"
+				photo.value = self.photodata
+
+			for name in ("label", "mailer", "tz", "geo", "role", "logo", "agent",\
+						  "categories", "sort-string", "sound", "class", "key", ):
+				if has_child(self.vcard, name):
+					new_vcard.add(self.vcard.contents[name][0])
+
+			for child in self.table.get_children():
+				if type(child) == EventVBox:
+					for hbox in child.get_children():
+						if type(hbox) == gtk.HBox:
+							field = hbox.get_children()[1]
+							if not type(field) == gtk.ScrolledWindow:
+								new_vcard.add(field.content)
+							else:
+								textbuffer = field.get_child().get_buffer()
+								start, end = textbuffer.get_bounds()
+								text = textbuffer.get_text(start, end).strip()
+								if len(text) > 0:
+									new_vcard.add("note")
+									new_vcard.note.value = escape(text)
+
+			try:
+				iter = self.vcard.iter
+				filename = os.path.join(self.new_parent.contact_dir, unescape(self.vcard.fn.value) + ".vcf")
+
+				if self.vcard.filename is not None:
+					if not filename == self.vcard.filename:
+						if not self.vcard.filename.startswith(self.new_parent.contact_dir):
+							filename = self.vcard.filename
+						else:
+							os.remove(self.vcard.filename)
+
+				new_file = file(filename, "w")
+				new_file.write(new_vcard.serialize())
+				new_file.close()
+
+				self.vcard = new_vcard
+
+				self.vcard.filename = filename
+				self.vcard.iter = iter
+				if self.vcard.iter is not None:
+					self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
+			except:
+				raise
+				pass
 		else:
 			errordialog = gtk.MessageDialog(self.new_parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Can't save, please enter a name."))
 			errordialog.run()
 			errordialog.destroy()
-
-	def editButton_click(self, button):
-		self.switch_mode(True, False)
 
 	def imagechangeButton_click(self, button):
 		def update_preview(filechooser):
@@ -802,11 +953,11 @@ class ContactWindow(gtk.VBox):
 				self.photodata = data
 				self.photodatatype = "B64"
 				self.imageremoveButton.show()
-				self.hasphoto = True
+				self.has_photo = True
 			except:
 				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
 				self.imageremoveButton.hide()
-				self.hasphoto = False
+				self.has_photo = False
 			self.photoImage.set_from_pixbuf(pixbuf)
 
 		dialog.destroy()
@@ -815,7 +966,7 @@ class ContactWindow(gtk.VBox):
 	def imageremoveButton_click(self, button):
 		pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
 		self.photoImage.set_from_pixbuf(pixbuf)
-		self.hasphoto = False
+		self.has_photo = False
 		button.hide()
 
 	def namechangeButton_click(self, button):
@@ -988,124 +1139,6 @@ class ContactWindow(gtk.VBox):
 		dialog.connect("response", dialog_response)
 		dialog.show_all()
 
-	def switch_mode(self, edit=False, save=False):
-		self.edit = edit
-		self.addButton.set_sensitive(edit)
-		self.undoButton.set_property("visible", edit)
-		self.saveButton.set_property("visible", edit)
-		self.editButton.set_property("visible", not edit)
-		self.imagechangeButton.set_property("visible", edit)
-		self.imageremoveButton.set_property("visible", edit and self.hasphoto)
-		self.namechangeButton.set_property("visible", edit)
-
-		for child in self.table.get_children():
-			if type(child) == EventVBox:
-				for hbox in child.get_children():
-					if type(hbox) == gtk.HBox:
-						# get caption & field
-						caption, field = hbox.get_children()[0].get_children()[0], hbox.get_children()[1]
-						caption.set_editable(edit)
-						if type(field) == LabelField:
-							field.set_editable(edit)
-							# remove empty field
-							if field.get_text() == "":
-								hbox.destroy()
-								continue
-						elif type(field) == AddressField:
-							field.set_editable(edit)
-							# remove empty field
-							if str(field.content.value).strip().replace(",", "") == "":
-								hbox.destroy()
-								continue
-						elif type(field) == BirthdayField:
-							field.set_editable(edit)
-						elif type(field) == gtk.ScrolledWindow:
-							if edit:
-								field.set_shadow_type(gtk.SHADOW_IN)
-								field.get_child().set_left_margin(2)
-								field.get_child().set_right_margin(2)
-							else:
-								field.set_shadow_type(gtk.SHADOW_NONE)
-								field.get_child().set_left_margin(0)
-								field.get_child().set_right_margin(2)
-							field.get_child().set_editable(edit)
-
-		if save: self.save()
-
-	def save(self):
-		self.is_new = False
-		new_vcard = vobject.vCard()
-		new_vcard.add("prodid").value = "Arkadas 1.0"
-		if has_child(self.vcard, "uid"):
-			new_vcard.add("uid").value = uuid()
-
-		if self.vcard.version.value == "3.0":
-			new_vcard.add(self.vcard.n)
-		else:
-			n = self.vcard.n.value.split(";")
-			new_vcard.add("n")
-			new_vcard.n.value = vobject.vcard.Name(n[0], n[1], n[2], n[3], n[4])
-		new_vcard.add(self.vcard.fn)
-		if has_child(self.vcard, "nickname"):
-			new_vcard.add(self.vcard.nickname)
-		if has_child(self.vcard, "org"):
-			new_vcard.add(self.vcard.org)
-		if has_child(self.vcard, "title"):
-			new_vcard.add(self.vcard.title)
-
-		if self.hasphoto:
-			photo = new_vcard.add("photo")
-			if self.photodatatype == "URI":
-				photo.value_param = "URI"
-			else:
-				photo.encoding_param = "b"
-			photo.value = self.photodata
-
-		for name in ("label", "mailer", "tz", "geo", "role", "logo", "agent",\
-					  "categories", "sort-string", "sound", "class", "key", ):
-			if has_child(self.vcard, name):
-				new_vcard.add(self.vcard.contents[name][0])
-
-		for child in self.table.get_children():
-			if type(child) == EventVBox:
-				for hbox in child.get_children():
-					if type(hbox) == gtk.HBox:
-						field = hbox.get_children()[1]
-						if not type(field) == gtk.ScrolledWindow:
-							new_vcard.add(field.content)
-						else:
-							textbuffer = field.get_child().get_buffer()
-							start, end = textbuffer.get_bounds()
-							text = textbuffer.get_text(start, end).strip()
-							if len(text) > 0:
-								new_vcard.add("note")
-								new_vcard.note.value = escape(text)
-
-		try:
-			iter = self.vcard.iter
-			filename = os.path.join(self.new_parent.contact_dir, unescape(self.vcard.fn.value) + ".vcf")
-
-			if self.vcard.filename is not None:
-				if not filename == self.vcard.filename:
-					if not self.vcard.filename.startswith(path):
-						filename = self.vcard.filename
-					else:
-						os.remove(self.vcard.filename)
-
-			new_file = file(filename, "w")
-			new_file.write(new_vcard.serialize())
-			new_file.close()
-
-			self.vcard = new_vcard
-
-			self.vcard.filename = filename
-			self.vcard.iter = iter
-			if self.vcard.iter is not None:
-				self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
-		except:
-			raise
-			pass
-
 	def add_labels_by_name(self, box, workbox, name):
 		if has_child(self.vcard, name):
 			for child in self.vcard.contents[name]:
@@ -1264,6 +1297,7 @@ class CaptionField(gtk.HBox):
 		if "WORK" in paramlist: text = types["WORK"]
 
 		if name.startswith("X-"): text = types[name]
+		elif name == "BDAY": text = types["BDAY"]
 		elif name == "URL": text = types["URL"]
 		elif name == "NOTE": text = types["NOTE"]
 		else:
