@@ -74,7 +74,7 @@ order = ["TEL", "EMAIL", "URL", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "
 #--------------------
 class MainWindow(gtk.Window):
 
-	def __init__(self, width=500, height=300):
+	def __init__(self, width=500, height=400):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 
 		self.set_title(_("Address Book"))
@@ -162,16 +162,15 @@ class MainWindow(gtk.Window):
 		self.vbox.pack_start(hpaned)
 
 		self.scrolledwindow = gtk.ScrolledWindow()
-		self.scrolledwindow.unset_flags(gtk.CAN_FOCUS)
+		#self.scrolledwindow.unset_flags(gtk.CAN_FOCUS)
 		self.scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
 		self.scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
-		self.scrolledwindow.set_size_request(200, -1)
+		self.scrolledwindow.set_size_request(150, -1)
 		hpaned.add1(self.scrolledwindow)
 
 		# contactlist
-		self.contactData = gtk.ListStore(str, gobject.TYPE_PYOBJECT)
-		self.contactData.set_sort_func(0, sort_contacts, None)
-		self.contactData.set_sort_column_id(0, gtk.SORT_ASCENDING)
+		self.contactData = gtk.ListStore(str, str, gobject.TYPE_PYOBJECT)
+		self.contactData.set_sort_column_id(1, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
 		self.contactList.set_headers_visible(False)
 		#self.contactList.set_rules_hint(True)
@@ -188,7 +187,6 @@ class MainWindow(gtk.Window):
 		column.pack_start(cellimg, False)
 		column.pack_start(celltxt)
 		column.add_attribute(celltxt,"text", 0)
-		column.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
 		self.contactList.append_column(column)
 
 		# contactview
@@ -205,14 +203,43 @@ class MainWindow(gtk.Window):
 		self.contactList.connect("popup-menu", self.contactList_popup_menu)
 		self.contactSelection.connect("changed", self.contactSelection_change)
 
-		load_contacts(os.path.join(self.config_dir, "contacts"), self.contactData)
-
-		self.contactSelection.select_path((0,))
 		self.contactList.grab_focus()
+
+		gobject.idle_add(self.load_contacts)
 
 	#---------------
 	# event funtions
 	#---------------
+	def load_contacts(self):
+		self.contactData.clear()
+		# read all files in folder
+		for curfile in os.listdir(self.contact_dir):
+			filename = os.path.join(self.contact_dir, curfile)
+			# create vcard-object
+			components = vobject.readComponents(file(filename, "r"))
+			for vcard in components:
+				try:
+					vcard.filename = filename
+					# get fullname, else make fullname from name
+					if vcard.version.value == "3.0":
+						sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
+					else:
+						n = vcard1.n.value.split(";")
+						sort_string = n[0] + " " + n[1] + " " + n[2]
+						if not has_child(vcard, "fn"):
+							fn = ""
+							for i in (3,1,2,0,4):
+								fn += n[i].strip() + " "
+							vcard.add("fn")
+							vcard.fn.value = fn.replace("  "," ").strip()
+					sort_string = sort_string.replace("  "," ").strip()
+					vcard.iter = self.contactData.append([vcard.fn.value, sort_string, vcard])
+				except:
+					break
+		self.contactSelection.select_path((0,))
+		return False
+
+
 	def delete_event(self, widget, event=None):
 		self.check_if_changed()
 		sys.exit()
@@ -247,12 +274,11 @@ class MainWindow(gtk.Window):
 	def view_contact(self, edit = False):
 		if self.contactSelection.count_selected_rows() > 0:
 			(model, iter) = self.contactSelection.get_selected()
-			vcard = model[iter][1]
+			vcard = model[iter][2]
 
 			self.check_if_new()
 			self.check_if_changed()
 			self.contactView.clear()
-			self.resize(500, 300)
 			self.contactView.load_contact(vcard, edit)
 
 	def newButton_click(self, widget):
@@ -371,7 +397,7 @@ class MainWindow(gtk.Window):
 
 	def copy_click(self, widget, name):
 		(model, iter) = self.contactSelection.get_selected()
-		vcard = model[iter][1]
+		vcard = model[iter][2]
 		value = vcard.getChildValue(name)
 		if value is not None:
 			if name == "fn": value = unescape(value)
@@ -428,20 +454,19 @@ class ContactWindow(gtk.VBox):
 		self.show_all()
 
 	def build_interface(self):
-		#color = self.new_parent.contactList.get_style().base[gtk.STATE_NORMAL]
 
-		eventbox = gtk.EventBox()
-		#eventbox.modify_bg(gtk.STATE_NORMAL, color)
-		eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
-		self.add(eventbox)
+		scrolledwindow = gtk.ScrolledWindow()
+		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
+		#scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
+		self.add(scrolledwindow)
 
-		frame = gtk.Frame()
-		frame.set_shadow_type(gtk.SHADOW_IN)
-		eventbox.add(frame)
+		viewport = gtk.Viewport()
+		viewport.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+		scrolledwindow.add(viewport)
 
 		self.table = gtk.VBox(False, 10)
 		self.table.set_border_width(10)
-		frame.add(self.table)
+		viewport.add(self.table)
 
 		hbox = gtk.HBox()
 		self.table.pack_end(hbox, False)
@@ -522,7 +547,7 @@ class ContactWindow(gtk.VBox):
 		self.urlbox = EventVBox()
 		self.adrbox = EventVBox()
 		self.bdaybox = EventVBox()
-		self.notebox = EventVBox()
+		self.notebox = gtk.VBox(False, 6)
 
 		self.table.pack_start(self.photobox, False)
 
@@ -683,13 +708,19 @@ class ContactWindow(gtk.VBox):
 				self.add_label(self.bdaybox, child)
 
 		# FIELD - note
-		self.notebox.set_spacing(6)
-		sep = gtk.HSeparator() ; sep.show()
-		self.notebox.pack_start(sep, False)
 		if not has_child(self.vcard, "note"): self.vcard.add("note")
-		self.add_label(self.notebox, self.vcard.note)
+		if not len(self.notebox.get_children()) > 0:
+			sep = gtk.HSeparator() ; sep.show()
+			self.notebox.pack_start(sep, False)
+			self.add_label(self.notebox, self.vcard.note)
+		else:
+			textview = self.notebox.get_children()[1].get_children()[1].get_child()
+			textview.get_buffer().set_text(unescape(self.vcard.note.value))
+		self.notebox.show_all()
 
 		self.editButton_click(edit=edit)
+
+		self.table.show()
 
 	def clear(self):
 		self.vcard = None
@@ -701,6 +732,7 @@ class ContactWindow(gtk.VBox):
 			if type(box) == EventVBox:
 				for child in box.get_children():
 					child.destroy()
+		self.table.hide()
 		self.addButton.hide()
 		self.saveButton.set_sensitive(False)
 		self.editButton.set_sensitive(False)
@@ -748,27 +780,34 @@ class ContactWindow(gtk.VBox):
 	def prevButton_click(self, button):
 		model = self.new_parent.contactData
 		selection = self.new_parent.contactSelection
-		cur_path = model.get_path(self.vcard.iter)[0]
+		try:
+			cur_path = model.get_path(self.vcard.iter)[0]
+		except:
+			cur_path = None
 
-		if cur_path > 0:
-			selection.select_path((cur_path-1,))
-		else:
-			selection.select_path((len(model)-1,))
+		if cur_path is not None:
+			if cur_path > 0:
+				selection.select_path((cur_path-1,))
+				return
+		selection.select_path((len(model)-1,))
 
 	def nextButton_click(self, button):
 		model = self.new_parent.contactData
 		selection = self.new_parent.contactSelection
-		cur_path = model.get_path(self.vcard.iter)[0]
+		try:
+			cur_path = model.get_path(self.vcard.iter)[0]
+		except:
+			cur_path = None
 
-		if cur_path < len(model)-1:
-			selection.select_path((cur_path+1,))
-		else:
-			selection.select_path((0,))
+		if cur_path is not None:
+			if cur_path < len(model)-1:
+				selection.select_path((cur_path+1,))
+				return
+		selection.select_path((0,))
 
 	def undoButton_click(self, button):
 		vcard = self.vcard
 		self.clear()
-		self.new_parent.resize(500, 300)
 		self.load_contact(vcard)
 
 	def editButton_click(self, button=None, edit=True):
@@ -809,20 +848,18 @@ class ContactWindow(gtk.VBox):
 								continue
 						elif type(field) == BirthdayField:
 							field.set_editable(edit)
-						elif type(field) == gtk.ScrolledWindow:
-							if edit:
-								field.set_shadow_type(gtk.SHADOW_IN)
-								field.get_child().set_left_margin(2)
-								field.get_child().set_right_margin(2)
-							else:
-								field.set_shadow_type(gtk.SHADOW_NONE)
-								field.get_child().set_left_margin(0)
-								field.get_child().set_right_margin(2)
-							field.get_child().set_editable(edit)
+
+		scrolledwindow = self.notebox.get_children()[1].get_children()[1]
+		textview = scrolledwindow.get_child()
+		if edit: scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
+		else: scrolledwindow.set_shadow_type(gtk.SHADOW_NONE)
+
+		textview.set_left_margin(2 * edit)
+		textview.set_right_margin(2 * edit)
+		textview.set_editable(edit)
 
 	def saveButton_click(self, button=None):
 		if len(unescape(self.vcard.fn.value)) > 0:
-			self.new_parent.resize(500, 300)
 			self.editButton_click(edit=False)
 			self.is_new = False
 			new_vcard = vobject.vCard()
@@ -862,15 +899,15 @@ class ContactWindow(gtk.VBox):
 					for hbox in child.get_children():
 						if type(hbox) == gtk.HBox:
 							field = hbox.get_children()[1]
-							if not type(field) == gtk.ScrolledWindow:
-								new_vcard.add(field.content)
-							else:
-								textbuffer = field.get_child().get_buffer()
-								start, end = textbuffer.get_bounds()
-								text = textbuffer.get_text(start, end).strip()
-								if len(text) > 0:
-									new_vcard.add("note")
-									new_vcard.note.value = escape(text)
+							new_vcard.add(field.content)
+
+			textview = self.notebox.get_children()[1].get_children()[1].get_child()
+			textbuffer = textview.get_buffer()
+			start, end = textbuffer.get_bounds()
+			text = textbuffer.get_text(start, end).strip()
+			if len(text) > 0:
+				new_vcard.add("note")
+				new_vcard.note.value = escape(text)
 
 			try:
 				iter = self.vcard.iter
@@ -1329,11 +1366,13 @@ class LabelField(gtk.HBox):
 		self.pack_start(self.labelbox)
 
 		self.label = gtk.Label()
+		self.label.set_selectable(True)
 		self.label.set_alignment(0,0.5)
 
 		if use_content:
 			if self.content.name in ("EMAIL", "URL"):
 				self.eventbox = gtk.EventBox()
+				self.eventbox.set_above_child(True)
 				self.eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
 				self.eventbox.add(self.label)
 				self.eventbox.show()
@@ -1344,11 +1383,9 @@ class LabelField(gtk.HBox):
 				self.labelbox.pack_start(self.eventbox, False)
 			else:
 				self.link = False
-				self.label.set_selectable(True)
 				self.labelbox.add(self.label)
 		else:
 			self.link = False
-			self.label.set_selectable(True)
 			self.labelbox.add(self.label)
 
 		sizegroup.add_widget(self.labelbox)
@@ -1610,58 +1647,6 @@ def entities(s):
 	s = s.replace("&", "&amp;")
 	s = s.replace("\"", "&quot;")
 	return s
-
-def load_contacts(path, model):
-	# make path if dont exists
-	if not os.path.exists(path): os.mkdir(path)
-	# clear all entrys
-	model.clear()
-	# read all files in folder
-	for curfile in os.listdir(path):
-		filename = os.path.join(path, curfile)
-		components = vobject.readComponents(file(filename, "r"))
-		for vcard in components:
-			try:
-				# create vcard-object
-				vcard.filename = filename
-				add_to_list(model, vcard)
-			except:
-				break
-
-def add_to_list(model, vcard):
-	# get fullname, else make fullname from name
-	if not has_child(vcard, "fn"):
-		fn = ""
-		n = vcard.n.value.split(";")
-		for i in (3,1,2,0,4):
-			fn += n[i].strip() + " "
-		vcard.add("fn")
-		vcard.fn.value = fn.replace("  "," ").strip()
-	vcard.iter = model.append([vcard.fn.value, vcard])
-
-# weird sort stuff
-def sort_contacts(model, iter1, iter2, data):
-	try:
-		vcard1 = model[iter1][1]
-		vcard2 = model[iter2][1]
-		if type(vcard1) == vobject.base.Component and type(vcard2) == vobject.base.Component:
-			if vcard1.version.value == "3.0":
-				f1 = vcard1.n.value.family + " " + vcard1.n.value.given + " " + vcard1.n.value.additional
-			else:
-				n = vcard1.n.value.split(";")
-				f1 = n[0] + " " + n[1] + " " + n[2]
-
-			if vcard2.version.value == "3.0":
-				f2 = vcard2.n.value.family + " " + vcard2.n.value.given + " " + vcard2.n.value.additional
-			else:
-				n = vcard2.n.value.split(";")
-				f2 = n[0] + " " + n[1] + " " + n[2]
-
-			return cmp(f1.replace("  "," ").strip(), f2.replace("  "," ").strip())
-		else:
-			return 0
-	except:
-		return 0
 
 def bday_from_value(value):
 	try:
