@@ -87,6 +87,7 @@ class MainWindow(gtk.Window):
 		self.connect("delete_event", self.delete_event)
 
 		self.fullscreen = False
+		self.import_mode = False
 
 		self.build_interface()
 		self.show_all()
@@ -107,6 +108,7 @@ class MainWindow(gtk.Window):
 			("CopyName", gtk.STOCK_COPY, _("_Copy Fullname"), None, None, lambda w: self.copy_click(w, "fn")),
 			("CopyEmail", None, _("Copy E_mail"), None, None, lambda w: self.copy_click(w, "email")),
 			("CopyNumber", None, _("Copy N_umber"), None, None, lambda w: self.copy_click(w, "tel")),
+			("Import", None, _("_Import"), None, None, self.importButton_click),
 			("Preferences", gtk.STOCK_PREFERENCES, None, None, _("Configure the application"), None),
 			("About", gtk.STOCK_ABOUT, None, None, None, self.aboutButton_click),
 			("Quit", gtk.STOCK_QUIT, None, None, None, self.delete_event),
@@ -131,6 +133,8 @@ class MainWindow(gtk.Window):
 			  <menuitem action="CopyEmail"/>
 			  <menuitem action="CopyNumber"/>
 			  <separator name="SM2"/>
+			  <menuitem action="Import"/>
+			  <separator name="SM3"/>
 			  <menuitem action="About"/>
 			  <menuitem action="Quit"/>
 			 </popup>
@@ -157,26 +161,34 @@ class MainWindow(gtk.Window):
 		self.vbox.pack_start(self.toolbar,False,False)
 
 		# paned
-		hpaned = gtk.HPaned()
-		hpaned.set_border_width(6)
-		self.vbox.pack_start(hpaned)
+		self.hpaned = gtk.HPaned()
+		self.hpaned.set_border_width(6)
+		self.vbox.pack_start(self.hpaned)
 
-		self.scrolledwindow = gtk.ScrolledWindow()
-		#self.scrolledwindow.unset_flags(gtk.CAN_FOCUS)
-		self.scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
-		self.scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
-		self.scrolledwindow.set_size_request(150, -1)
-		hpaned.add1(self.scrolledwindow)
+		vbox = gtk.VBox(False, 6)
+		self.hpaned.add1(vbox)
+
+		self.revertButton = gtk.Button("", gtk.STOCK_REVERT_TO_SAVED)
+		self.revertButton.set_no_show_all(True)
+		self.revertButton.connect("clicked", self.revertButton_click)
+		vbox.pack_start(self.revertButton, False)
+
+		scrolledwindow = gtk.ScrolledWindow()
+		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
+		scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
+		scrolledwindow.set_size_request(150, -1)
+		vbox.add(scrolledwindow)
 
 		# contactlist
 		self.contactData = gtk.ListStore(str, str, gobject.TYPE_PYOBJECT)
 		self.contactData.set_sort_column_id(1, gtk.SORT_ASCENDING)
 		self.contactList = gtk.TreeView(self.contactData)
+
 		self.contactList.set_headers_visible(False)
-		#self.contactList.set_rules_hint(True)
 		self.contactList.set_enable_search(True)
 		self.contactSelection = self.contactList.get_selection()
-		self.scrolledwindow.add(self.contactList)
+		self.contactSelection.set_mode(gtk.SELECTION_MULTIPLE)
+		scrolledwindow.add(self.contactList)
 
 		# contactlist cellrenderers
 		cellimg = gtk.CellRendererPixbuf()
@@ -191,9 +203,7 @@ class MainWindow(gtk.Window):
 
 		# contactview
 		self.contactView = ContactWindow(self)
-		hpaned.add2(self.contactView)
-
-		self.vbox.show_all()
+		self.hpaned.add2(self.contactView)
 
 		# events
 		self.contactData.connect("row-deleted", self.contactData_change, None)
@@ -205,10 +215,16 @@ class MainWindow(gtk.Window):
 
 		self.contactList.grab_focus()
 
-		gobject.idle_add(self.load_contacts)
+		id = gobject.idle_add(self.load_contacts)
+
+		args = sys.argv[1:]
+		if len(args) > 0:
+			gobject.source_remove(id)
+			for arg in args:
+				self.import_contact(arg, True)
 
 	#---------------
-	# event funtions
+	# main funtions
 	#---------------
 	def load_contacts(self):
 		self.contactData.clear()
@@ -220,30 +236,50 @@ class MainWindow(gtk.Window):
 			for vcard in components:
 				try:
 					vcard.filename = filename
-					# get fullname, else make fullname from name
-					if vcard.version.value == "3.0":
-						sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
-					else:
-						n = vcard1.n.value.split(";")
-						sort_string = n[0] + " " + n[1] + " " + n[2]
-						if not has_child(vcard, "fn"):
-							fn = ""
-							for i in (3,1,2,0,4):
-								fn += n[i].strip() + " "
-							vcard.add("fn")
-							vcard.fn.value = fn.replace("  "," ").strip()
-					sort_string = sort_string.replace("  "," ").strip()
-					vcard.iter = self.contactData.append([vcard.fn.value, sort_string, vcard])
+					self.add_to_list(vcard)
 				except:
 					break
 		self.contactSelection.select_path((0,))
 		return False
 
+	def add_to_list(self, vcard):
+		# get fullname, else make fullname from name
+		if vcard.version.value == "3.0":
+			sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
+		else:
+			n = vcard1.n.value.split(";")
+			sort_string = n[0] + " " + n[1] + " " + n[2]
+			if not has_child(vcard, "fn"):
+				fn = ""
+				for i in (3,1,2,0,4):
+					fn += n[i].strip() + " "
+				vcard.add("fn")
+				vcard.fn.value = fn.replace("  "," ").strip()
+		sort_string = sort_string.replace("  "," ").strip()
+		vcard.iter = self.contactData.append([vcard.fn.value, sort_string, vcard])
 
-	def delete_event(self, widget, event=None):
-		self.check_if_changed()
-		sys.exit()
-		return False
+	def import_contact(self, filename, add=False):
+		if not self.import_mode:
+			self.check_if_changed()
+			self.contactData.clear()
+			self.import_mode = True
+			self.revertButton.show()
+
+		try:
+			components = vobject.readComponents(file(filename, "r"))
+			for vcard in components:
+				vcard.filename = filename
+				vcard.iter = None
+				self.add_to_list(vcard)
+				self.contactSelection.select_iter(vcard.iter)
+				if add:
+					vcard.filename = None
+					self.contactView.saveButton_click()
+		except:
+			error_dialog = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to load the contact."))
+			error_dialog.run()
+			error_dialog.destroy()
+			self.contactView.clear()
 
 	def check_if_new(self):
 		if self.contactView.is_new:
@@ -256,7 +292,7 @@ class MainWindow(gtk.Window):
 			return False
 
 	def check_if_changed(self):
-		if self.contactView.edit:
+		if self.contactView.edit and self.contactView.vcard is not None:
 			text = "<big><b>%s</b></big>" % _("Save the changes to contact before closing?")
 			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % unescape(self.contactView.vcard.fn.value)
 
@@ -273,13 +309,27 @@ class MainWindow(gtk.Window):
 
 	def view_contact(self, edit = False):
 		if self.contactSelection.count_selected_rows() > 0:
-			(model, iter) = self.contactSelection.get_selected()
-			vcard = model[iter][2]
+			(model, paths) = self.contactSelection.get_selected_rows()
+			vcard = model[paths[0]][2]
 
 			self.check_if_new()
 			self.check_if_changed()
 			self.contactView.clear()
 			self.contactView.load_contact(vcard, edit)
+
+	#---------------
+	# event funtions
+	#---------------
+	def delete_event(self, widget, event=None):
+		self.check_if_changed()
+		sys.exit()
+		return False
+
+	def revertButton_click(self, widget):
+		self.check_if_changed()
+		self.import_mode = False
+		self.revertButton.hide()
+		self.load_contacts()
 
 	def newButton_click(self, widget):
 		vcard = vobject.vCard()
@@ -301,6 +351,9 @@ class MainWindow(gtk.Window):
 
 	def openButton_click(self, widget):
 		dialog = gtk.FileChooserDialog(title=_("Open Contact"),action=gtk.FILE_CHOOSER_ACTION_OPEN,buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+		dialog.set_default_response(gtk.RESPONSE_OK)
+		dialog.set_select_multiple(True)
+		dialog.set_extra_widget(gtk.CheckButton(_("Import to contactlist")))
 		filter = gtk.FileFilter()
 		filter.set_name(_("vCard Files"))
 		filter.add_mime_type("application/vcard")
@@ -310,60 +363,56 @@ class MainWindow(gtk.Window):
 		filter.set_name(_("All Files"))
 		filter.add_pattern("*")
 		dialog.add_filter(filter)
-		check = gtk.CheckButton(_("Import to contactlist"))
-		dialog.set_extra_widget(check)
-		dialog.set_default_response(gtk.RESPONSE_OK)
 
 		if dialog.run() == gtk.RESPONSE_OK:
-			filename = dialog.get_filename()
-			try:
-				vcard = vobject.readOne(file(filename, "r"))
-				vcard.filename = filename
-				vcard.iter = None
-				self.fullscreen = False
-				self.fullscreenButton_click(self.actiongroup.get_action("Fullscreen"))
-				if check.get_active():
-					vcard.filename = None
-					add_to_list(self.contactData, vcard)
-					self.contactSelection.select_iter(vcard.iter)
-					self.contactSelection_change(None)
-					self.contactView.save()
-				else:
-					self.contactSelection.unselect_all()
-					self.check_if_changed()
-					self.contactView.clear()
-					self.contactView.load_contact(vcard)
-			except:
-				raise
-				error_dialog = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to load the contact."))
-				error_dialog.run()
-				error_dialog.destroy()
+			for filename in dialog.get_filenames():
+				self.import_contact(filename, dialog.get_extra_widget().get_active())
 
 		dialog.destroy()
 
+	def importButton_click(self, widget):
+		(model, paths) = self.contactSelection.get_selected_rows()
+		for path in paths:
+			vcard = model[path][2]
+			vcard.filename = None
+			self.contactView.saveButton_click()
+
 	def deleteButton_click(self, widget):
 		selected = self.contactSelection.count_selected_rows() > 0
+		many = self.contactSelection.count_selected_rows() > 1
 		if selected and not self.check_if_new():
-			(model, iter) = self.contactSelection.get_selected()
-			fullname = model[iter][0]
-			filename = model[iter][1].filename
+			(model, paths) = self.contactSelection.get_selected_rows()
 
-			text = "<big><b>%s</b></big>" % _("Remove Contact")
-			sec_text = _("You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?") % (fullname)
+			if many:
+				text = "<big><b>%s</b></big>" % _("Remove Contacts")
+				sec_text = _("You are about to remove the selected contacts from your contactlist.\nDo you want to continue?")
+			else:
+				fullname = model[paths[0]][0]
+				text = "<big><b>%s</b></big>" % _("Remove Contact")
+				sec_text = _("You are about to remove <b>%s</b> from your contactlist.\nDo you want to continue?") % (fullname)
 
 			msgbox = gtk.MessageDialog(self, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE)
 			msgbox.set_title("Arkadas")
-			msgbox.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, "Delete Contact", gtk.RESPONSE_OK)
+			msgbox.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+			if many:
+				msgbox.add_button(_("Delete Contacts"), gtk.RESPONSE_OK)
+			else:
+				msgbox.add_button(_("Delete Contact"), gtk.RESPONSE_OK)
 			msgbox.set_markup(text)
 			msgbox.format_secondary_markup(sec_text)
 
 			if msgbox.run() == gtk.RESPONSE_OK:
-				try:
-					os.remove(filename)
-					self.contactData.remove(iter)
-					self.contactSelection.select_path((0,))
-				except:
-					pass
+				iters = []
+				for path in paths:
+					iters.append(model.get_iter(path))
+				for iter in iters:
+					filename = model[iter][2].filename
+					try:
+						os.remove(filename)
+						self.contactData.remove(iter)
+						self.contactSelection.select_path((0,))
+					except:
+						pass
 			msgbox.destroy()
 
 	def fullscreenButton_click(self, widget):
@@ -371,7 +420,7 @@ class MainWindow(gtk.Window):
 			widget.set_property("stock-id", gtk.STOCK_FULLSCREEN)
 		else:
 			widget.set_property("stock-id", gtk.STOCK_LEAVE_FULLSCREEN)
-		self.scrolledwindow.set_property("visible", self.fullscreen)
+		self.hpaned.get_child1().set_property("visible", self.fullscreen)
 		self.fullscreen = not self.fullscreen
 
 	def aboutButton_click(self, widget):
@@ -395,9 +444,9 @@ class MainWindow(gtk.Window):
 		aboutdialog.run()
 		aboutdialog.destroy()
 
-	def copy_click(self, widget, name):
-		(model, iter) = self.contactSelection.get_selected()
-		vcard = model[iter][2]
+	def copyButton_click(self, widget, name):
+		(model, paths) = self.contactSelection.get_selected_rows()
+		vcard = model[paths[0]][2]
 		value = vcard.getChildValue(name)
 		if value is not None:
 			if name == "fn": value = unescape(value)
@@ -427,6 +476,7 @@ class MainWindow(gtk.Window):
 		self.uiManager.get_widget("/Itemmenu/CopyName").set_property("visible", selected)
 		self.uiManager.get_widget("/Itemmenu/CopyEmail").set_property("visible", selected)
 		self.uiManager.get_widget("/Itemmenu/CopyNumber").set_property("visible", selected)
+		self.uiManager.get_widget("/Itemmenu/Import").set_property("visible", selected and self.import_mode)
 
 		if selected:
 			self.view_contact()
@@ -929,9 +979,9 @@ class ContactWindow(gtk.VBox):
 				self.vcard.filename = filename
 				self.vcard.iter = iter
 				if self.vcard.iter is not None:
-					self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, self.vcard)
+					sort_string = self.vcard.n.value.family + " " + self.vcard.n.value.given + " " + self.vcard.n.value.additional
+					self.new_parent.contactData.set(self.vcard.iter, 0, unescape(self.vcard.fn.value), 1, sort_string, 2, self.vcard)
 			except:
-				raise
 				pass
 		else:
 			errordialog = gtk.MessageDialog(self.new_parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Can't save, please enter a name."))
@@ -1179,8 +1229,12 @@ class ContactWindow(gtk.VBox):
 	def add_labels_by_name(self, box, workbox, name):
 		if has_child(self.vcard, name):
 			for child in self.vcard.contents[name]:
-				if "WORK" in child.type_paramlist: self.add_label(workbox, child)
-				else: self.add_label(box, child)
+				if child.params.has_key("TYPE"):
+					if "WORK" in child.type_paramlist: self.add_label(workbox, child)
+					else: self.add_label(box, child)
+				else:
+					child.type_paramlist = ["HOME"]
+					self.add_label(box, child)
 
 	def add_label(self, box, content):
 		hbox = gtk.HBox(False, 6)
@@ -1421,10 +1475,12 @@ class LabelField(gtk.HBox):
 	def set_empty_text(self):
 		if self.content.name.startswith("X-"): type = "IM"
 		elif self.content.name == "TEL":
+			type = None
 			for param in self.content.type_paramlist:
 				if param in tel_types:
 					type = param
 					break
+			if type is None: type =  "VOICE"
 		else: type = self.content.name.upper()
 		self.empty_text = types.get(type, "Empty")
 
@@ -1510,7 +1566,6 @@ class AddressField(gtk.HBox):
 		self.city.set_autosize(True)
 		self.region.set_autosize(True)
 		self.code.set_autosize(True)
-
 
 		self.table.attach(self.street, 0, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL)
 		self.table.attach(self.box, 0, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL)
