@@ -81,7 +81,7 @@ class MainWindow:
 
 	def __init__(self):
 		gtk.window_set_default_icon_name("address-book")
-		self.tree = gtk.glade.XML(find_path("arkadas.glade"))
+		self.tree = gtk.glade.XML(find_path(os.path.join("arkadas", "arkadas.glade")))
 
 		signals = {}
 		for attr in dir(self.__class__):
@@ -130,7 +130,6 @@ class MainWindow:
 		self.namechangeButton = self.tree.get_widget("namechangeButton")
 
 		self.photoImage = self.tree.get_widget("photoImage")
-		self.loadingAnim = gtk.gdk.PixbufAnimation(find_path("loading.gif"))
 
 	def build_list(self):
 		self.contactSelection = self.contactList.get_selection()
@@ -1529,17 +1528,17 @@ def browser_load(docslink, parent = None):
 						error_dialog.destroy()
 
 def find_path(filename):
-	if os.path.exists(os.path.join(sys.prefix, "share", "pixmaps", filename)):
-		full_filename = os.path.join(sys.prefix, "share", "pixmaps", filename)
-	elif os.path.exists(os.path.join(os.path.split(__file__)[0], filename)):
-		full_filename = os.path.join(os.path.split(__file__)[0], filename)
-	elif os.path.exists(os.path.join(os.path.split(__file__)[0], "pixmaps", filename)):
-		full_filename = os.path.join(os.path.split(__file__)[0], "pixmaps", filename)
-	elif os.path.exists(os.path.join(os.path.split(__file__)[0], "share", filename)):
-			full_filename = os.path.join(os.path.split(__file__)[0], "share", filename)
-	elif os.path.exists(os.path.join(__file__.split("/lib")[0], "share", "pixmaps", filename)):
-			full_filename = os.path.join(__file__.split("/lib")[0], "share", "pixmaps", filename)
-	return full_filename
+	dirs = (os.path.join(sys.prefix, filename),
+			os.path.join(sys.prefix, "share", filename),
+			os.path.join(sys.prefix, "share", "pixmaps", filename),
+			os.path.join(os.path.split(__file__)[0], filename),
+			os.path.join(os.path.split(__file__)[0], "pixmaps", filename),
+			os.path.join(os.path.split(__file__)[0], "share", filename),
+			os.path.join(__file__.split("/lib")[0], "share", "pixmaps", filename),)
+	for dir in dirs:
+		if os.path.exists(dir):
+			return dir
+	return ""
 
 def uuid():
 	pipe = os.popen("uuidgen", "r")
