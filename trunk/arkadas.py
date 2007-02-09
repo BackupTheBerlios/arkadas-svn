@@ -77,11 +77,11 @@ class MainWindow:
 	edit = False
 	is_new = False
 	vcard = None
-	cur_thread = None
+	photodatatype = None
 
 	def __init__(self):
 		gtk.window_set_default_icon_name("address-book")
-		self.tree = gtk.glade.XML(find_path(os.path.join("arkadas", "arkadas.glade")))
+		self.tree = gtk.glade.XML(find_path("arkadas.glade"))
 
 		signals = {}
 		for attr in dir(self.__class__):
@@ -249,7 +249,7 @@ class MainWindow:
 		if vcard.version.value == "3.0":
 			sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
 		else:
-			n = vcard1.n.value.split(";")
+			n = vcard.n.value.split(";")
 			sort_string = n[0] + " " + n[1] + " " + n[2]
 			if not has_child(vcard, "fn"):
 				fn = ""
@@ -826,7 +826,6 @@ class MainWindow:
 					self.contactData[self.vcard.iter][1] = sort_string
 					self.contactData[self.vcard.iter][2] = self.vcard
 			except:
-				raise
 				pass
 		else:
 			errordialog = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Can't save, please enter a name."))
@@ -1530,6 +1529,7 @@ def browser_load(docslink, parent = None):
 def find_path(filename):
 	dirs = (os.path.join(sys.prefix, filename),
 			os.path.join(sys.prefix, "share", filename),
+			os.path.join(sys.prefix, "share", "arkadas", filename),
 			os.path.join(sys.prefix, "share", "pixmaps", filename),
 			os.path.join(os.path.split(__file__)[0], filename),
 			os.path.join(os.path.split(__file__)[0], "pixmaps", filename),
