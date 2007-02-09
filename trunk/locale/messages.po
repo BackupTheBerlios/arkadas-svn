@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2007-02-07 00:06+0100\n"
+"POT-Creation-Date: 2007-02-09 23:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,210 +16,231 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: arkadas.py:43
+#: arkadas.py:41
 msgid "Home"
 msgstr ""
 
-#: arkadas.py:43
+#: arkadas.py:41
 msgid "Work"
 msgstr ""
 
-#: arkadas.py:44
+#: arkadas.py:42
 msgid "Birthday"
 msgstr ""
 
-#: arkadas.py:44
+#: arkadas.py:42
 msgid "Website"
 msgstr ""
 
-#: arkadas.py:45
+#: arkadas.py:43
 msgid "Address"
 msgstr ""
 
-#: arkadas.py:46
+#: arkadas.py:44
 msgid "Username"
 msgstr ""
 
-#: arkadas.py:47
+#: arkadas.py:45
 msgid "Notes:"
 msgstr ""
 
-#: arkadas.py:47
+#: arkadas.py:45
 msgid "Phone"
 msgstr ""
 
-#: arkadas.py:49
+#: arkadas.py:47
 msgid "Postbox"
 msgstr ""
 
-#: arkadas.py:49
+#: arkadas.py:47
 msgid "Extended"
 msgstr ""
 
-#: arkadas.py:50
+#: arkadas.py:48
 msgid "Street"
 msgstr ""
 
-#: arkadas.py:50
+#: arkadas.py:48
 msgid "City"
 msgstr ""
 
-#: arkadas.py:51
+#: arkadas.py:49
 msgid "State"
 msgstr ""
 
-#: arkadas.py:51
+#: arkadas.py:49
 msgid "ZIP"
 msgstr ""
 
-#: arkadas.py:51
+#: arkadas.py:49
 msgid "Country"
 msgstr ""
 
-#: arkadas.py:53
+#: arkadas.py:51
 msgid "Landline"
 msgstr ""
 
-#: arkadas.py:53
+#: arkadas.py:51
 msgid "ISDN"
 msgstr ""
 
-#: arkadas.py:54
+#: arkadas.py:52
 msgid "Mobile"
 msgstr ""
 
-#: arkadas.py:54
+#: arkadas.py:52
 msgid "Fax"
 msgstr ""
 
-#: arkadas.py:55
+#: arkadas.py:53
 msgid "Car"
 msgstr ""
 
-#: arkadas.py:55
+#: arkadas.py:53
 msgid "Video"
 msgstr ""
 
-#: arkadas.py:56
+#: arkadas.py:54
 msgid "Pager"
 msgstr ""
 
-#: arkadas.py:56
+#: arkadas.py:54
 msgid "Modem"
 msgstr ""
 
-#: arkadas.py:57
+#: arkadas.py:55
 msgid "BBS"
 msgstr ""
 
-#: arkadas.py:57
+#: arkadas.py:55
 msgid "PCS"
 msgstr ""
 
-#: arkadas.py:282
+#: arkadas.py:260
 msgid "Unable to load the contact."
 msgstr ""
 
-#: arkadas.py:299
+#: arkadas.py:288
 msgid "Save the changes to contact before closing?"
 msgstr ""
 
-#: arkadas.py:300
+#: arkadas.py:289
 #, python-format
 msgid ""
 "If you don't save, changes you made to <b>%s</b> will be permanently lost."
 msgstr ""
 
-#: arkadas.py:508
+#: arkadas.py:492
 msgid "Unnamed"
 msgstr ""
 
-#: arkadas.py:517
+#: arkadas.py:506
 msgid "Open Contacts"
 msgstr ""
 
-#: arkadas.py:520
+#: arkadas.py:509
 msgid "Import to contactlist"
 msgstr ""
 
-#: arkadas.py:522
+#: arkadas.py:511
 msgid "vCard Files"
 msgstr ""
 
-#: arkadas.py:527 arkadas.py:865
+#: arkadas.py:516 arkadas.py:813
 msgid "All Files"
 msgstr ""
 
-#: arkadas.py:544
+#: arkadas.py:540
 msgid "Remove Contacts"
 msgstr ""
 
-#: arkadas.py:545
+#: arkadas.py:541
 msgid ""
 "You are about to remove the selected contacts from your contactlist.\n"
 "Do you want to continue?"
 msgstr ""
 
-#: arkadas.py:548
+#: arkadas.py:544
 msgid "Remove Contact"
 msgstr ""
 
-#: arkadas.py:549
+#: arkadas.py:545
 #, python-format
 msgid ""
 "You are about to remove <b>%s</b> from your contactlist.\n"
 "Do you want to continue?"
 msgstr ""
 
-#: arkadas.py:555
+#: arkadas.py:551
 msgid "Delete Contacts"
 msgstr ""
 
-#: arkadas.py:557
+#: arkadas.py:553
 msgid "Delete Contact"
 msgstr ""
 
-#: arkadas.py:621
+#: arkadas.py:597
+#, python-format
+msgid "Successfully copied <b>%s</b> to clipboard."
+msgstr ""
+
+#: arkadas.py:616
+msgid "Successfully imported the selected contacts."
+msgstr ""
+
+#: arkadas.py:630
 msgid "A lightweight GTK+ Contact-Manager based on vCards."
 msgstr ""
 
-#: arkadas.py:833
+#: arkadas.py:789
+msgid "Unable to save the contact."
+msgstr ""
+
+#: arkadas.py:791
 msgid "Can't save, please enter a name."
 msgstr ""
 
-#: arkadas.py:859
+#: arkadas.py:806
 msgid "Open Image"
 msgstr ""
 
-#: arkadas.py:861
+#: arkadas.py:809
 msgid "Images"
 msgstr ""
 
-#: arkadas.py:1008
+#: arkadas.py:824
+msgid "Scaledown to 200 Pixel"
+msgstr ""
+
+#: arkadas.py:825
+msgid "Crop image"
+msgstr ""
+
+#: arkadas.py:971
 msgid "no contacts"
 msgstr ""
 
-#: arkadas.py:1009
+#: arkadas.py:972
 msgid " contact"
 msgstr ""
 
-#: arkadas.py:1010
+#: arkadas.py:973
 msgid " contacts"
 msgstr ""
 
-#: arkadas.py:1380
+#: arkadas.py:1362
 msgid "Day"
 msgstr ""
 
-#: arkadas.py:1386
+#: arkadas.py:1368
 msgid "Month"
 msgstr ""
 
-#: arkadas.py:1392
+#: arkadas.py:1374
 msgid "Year"
 msgstr ""
 
-#: arkadas.py:1527
+#: arkadas.py:1590
 msgid "Unable to launch a suitable browser."
 msgstr ""
 
@@ -247,63 +268,75 @@ msgstr ""
 msgid "_View"
 msgstr ""
 
-#: arkadas.glade:184
+#: arkadas.glade:183
 msgid "_Help"
 msgstr ""
 
-#: arkadas.glade:213
+#: arkadas.glade:212
 msgid "Create a new contact"
 msgstr ""
 
-#: arkadas.glade:224
+#: arkadas.glade:223
 msgid "Open and import contacts"
 msgstr ""
 
-#: arkadas.glade:235
+#: arkadas.glade:234
 msgid "Delete the selected contacts"
 msgstr ""
 
-#: arkadas.glade:255
+#: arkadas.glade:254
 msgid "Switch between fullscreen view"
 msgstr ""
 
-#: arkadas.glade:275
+#: arkadas.glade:274
 msgid "Configure the application"
 msgstr ""
 
-#: arkadas.glade:364
+#: arkadas.glade:362
 msgid "Change photo"
 msgstr ""
 
-#: arkadas.glade:382
+#: arkadas.glade:379
 msgid "Remove photo"
 msgstr ""
 
-#: arkadas.glade:464
+#: arkadas.glade:460
 msgid "Change name and title"
 msgstr ""
 
-#: arkadas.glade:513
+#: arkadas.glade:509
 msgid "Add Field"
 msgstr ""
 
-#: arkadas.glade:640
+#: arkadas.glade:636
 msgid "Edit Contact Name"
 msgstr ""
 
-#: arkadas.glade:702
-msgid "_Organization:"
+#: arkadas.glade:664
+msgid "Honoric _Prefixes:"
 msgstr ""
 
-#: arkadas.glade:713
-msgid "_Title/Role:"
+#: arkadas.glade:672
+msgid "_Given name:"
 msgstr ""
 
-#: arkadas.glade:724
-msgid "_Nickname:"
+#: arkadas.glade:684
+msgid "_Additional names:"
 msgstr ""
 
-#: arkadas.glade:747
+#: arkadas.glade:696
+msgid "_Family names:"
+msgstr ""
+
+#: arkadas.glade:708
+msgid "Honoric _Suffixes:"
+msgstr ""
+
+#: arkadas.glade:720
+msgid "For_matted name:"
+msgstr ""
+
+#: arkadas.glade:838
 msgid ""
 "Simple Name\n"
 "Full Name\n"
@@ -311,26 +344,14 @@ msgid ""
 "Reverse Name"
 msgstr ""
 
-#: arkadas.glade:867
-msgid "For_matted name:"
+#: arkadas.glade:866
+msgid "_Nickname:"
 msgstr ""
 
 #: arkadas.glade:878
-msgid "Honoric _Suffixes:"
+msgid "_Title/Role:"
 msgstr ""
 
-#: arkadas.glade:889
-msgid "_Family names:"
-msgstr ""
-
-#: arkadas.glade:900
-msgid "_Additional names:"
-msgstr ""
-
-#: arkadas.glade:911
-msgid "_Given name:"
-msgstr ""
-
-#: arkadas.glade:922
-msgid "Honoric _Prefixes:"
+#: arkadas.glade:890
+msgid "_Organization:"
 msgstr ""

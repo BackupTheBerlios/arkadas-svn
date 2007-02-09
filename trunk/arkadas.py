@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import sys, os, datetime, gc, threading
+import sys, os, datetime, gc, threading, socket
 import gtk, gtk.glade, gobject, pango
 
 # Test pygtk version
 if gtk.pygtk_version < (2, 6, 0):
 	sys.stderr.write("requires PyGTK 2.6.0 or newer.\n")
 	sys.exit(1)
-
-gobject.threads_init()
 
 try:
 	import vobject
@@ -68,6 +66,9 @@ im_types = ("X-AIM", "X-GADU-GADU", "X-GROUPWISE", "X-ICQ", "X-IRC", "X-JABBER",
 
 order = ["TEL", "EMAIL", "URL", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "WORK_ADR"]
 
+gobject.threads_init()
+socket.setdefaulttimeout(30)
+
 #--------------------
 # Class MainWindow
 #--------------------
@@ -100,21 +101,24 @@ class MainWindow:
 
 		args = sys.argv[1:]
 		if len(args) > 0:
+			last = None
 			for arg in args:
-				self.import_contact(arg, True)
+				last = self.import_contact(arg, True)
+			if last is not None:
+				self.contactSelection.select_iter(last)
 
 		if not len(self.contactData) > 0:
 			self.import_mode = False
-			self.tree.get_widget("revertButton").hide()
+			self.revertButton.hide()
 			gobject.idle_add(self.load_contacts)
 
 	def load_prefs(self):
 		# set fallback config dir
 		path = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-		self.config_dir = os.path.join(path, "arkadas")
-		if not os.path.exists(self.config_dir): os.mkdir(self.config_dir)
+		self.base_dir = os.path.join(path, "arkadas")
+		if not os.path.exists(self.base_dir): os.mkdir(self.base_dir)
 		# set fallback contact dir
-		self.contact_dir = os.path.join(self.config_dir, "contacts")
+		self.contact_dir = os.path.join(self.base_dir, "contacts")
 
 	def load_widgets(self):
 		self.window = self.tree.get_widget("mainWindow")
@@ -125,6 +129,7 @@ class MainWindow:
 		self.undoButton = self.tree.get_widget("undoButton")
 		self.saveButton = self.tree.get_widget("saveButton")
 		self.editButton = self.tree.get_widget("editButton")
+		self.revertButton = self.tree.get_widget("revertButton")
 		self.imagechangeButton = self.tree.get_widget("imagechangeButton")
 		self.imageremoveButton = self.tree.get_widget("imageremoveButton")
 		self.namechangeButton = self.tree.get_widget("namechangeButton")
@@ -135,7 +140,7 @@ class MainWindow:
 		self.contactSelection = self.contactList.get_selection()
 		self.contactSelection.set_mode(gtk.SELECTION_MULTIPLE)
 
-		self.contactData = gtk.ListStore(str, str, gobject.TYPE_PYOBJECT)
+		self.contactData = gtk.ListStore(str, str, str)
 		self.contactData.set_sort_column_id(1, gtk.SORT_ASCENDING)
 		self.contactList.set_model(self.contactData)
 
@@ -233,60 +238,45 @@ class MainWindow:
 		# read all files in folder
 		for curfile in os.listdir(self.contact_dir):
 			filename = os.path.join(self.contact_dir, curfile)
-			# create vcard-object
-			components = vobject.readComponents(file(filename, "r"))
-			for vcard in components:
-				try:
-					vcard.filename = filename
-					self.add_to_list(vcard)
-				except:
-					break
+			vcard = load_contact(filename)
+			if vcard is not None:
+				self.add_to_list(vcard, filename)
 		self.contactSelection.select_path((0,))
 		return False
 
-	def add_to_list(self, vcard):
-		# get fullname, else make fullname from name
-		if vcard.version.value == "3.0":
-			sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
-		else:
-			n = vcard.n.value.split(";")
-			sort_string = n[0] + " " + n[1] + " " + n[2]
-			if not has_child(vcard, "fn"):
-				fn = ""
-				for i in (3,1,2,0,4):
-					fn += n[i].strip() + " "
-				vcard.add("fn")
-				vcard.fn.value = fn.replace("  "," ").strip()
-		sort_string = sort_string.replace("  "," ").strip()
-		vcard.iter = self.contactData.append([unescape(vcard.fn.value), sort_string, vcard])
+	def add_to_list(self, vcard, filename):
+		sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
+		return self.contactData.append([unescape(vcard.fn.value), sort_string.replace("  "," ").strip(), filename])
 
 	def import_contact(self, filename, add=False):
 		if not self.import_mode:
 			self.check_if_changed()
 			self.contactData.clear()
 			self.import_mode = True
-			self.tree.get_widget("revertButton").show()
+			self.revertButton.show()
 
-		try:
-			components = vobject.readComponents(file(filename, "r"))
-			for vcard in components:
-				vcard.filename = filename
-				vcard.iter = None
-				self.add_to_list(vcard)
-				self.contactSelection.select_iter(vcard.iter)
-				if add:
-					vcard.filename = None
-					self.saveButton_clicked()
-		except:
-			error_dialog = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to load the contact."))
-			error_dialog.run()
-			error_dialog.destroy()
+		vcard = load_contact(filename)
+		if vcard is None:
+			error(_("Unable to load the contact."), self.window)
 			self.clear()
+			return None
+
+		if add:
+			if not has_child(vcard, "prodid"):
+				vcard.add("prodid").value = "Arkadas 1.0"
+			if not has_child(vcard, "uid"):
+				vcard.add("uid").value = uuid()
+
+			filename = os.path.join(self.contact_dir, vcard.uid.value)
+			save_contact(vcard, filename)
+
+		return self.add_to_list(vcard, filename)
 
 	def check_if_new(self):
 		if self.is_new:
 			self.is_new = False
-			self.contactData.remove(self.vcard.iter)
+			os.remove(self.contactData[self.iter][2])
+			self.contactData.remove(self.iter)
 			self.editButton_clicked(edit=False)
 			self.clear()
 			return True
@@ -309,20 +299,9 @@ class MainWindow:
 				self.saveButton_clicked()
 			msgbox.destroy()
 
-	def view_contact(self, edit = False):
-		if self.contactSelection.count_selected_rows() > 0:
-			(model, paths) = self.contactSelection.get_selected_rows()
-			vcard = model[paths[0]][2]
-
-			self.check_if_new()
-			self.check_if_changed()
-			self.clear()
-			self.load_contact(vcard, edit)
-
-	def load_contact(self, new_vcard, edit=False):
-		self.vcard = new_vcard
-
-		self.saveButton.set_sensitive(True)
+	def parse_contact(self):
+		if self.vcard.version.value == "3.0":
+			self.saveButton.set_sensitive(True)
 		self.editButton.set_sensitive(True)
 
 		self.has_photo = True
@@ -362,7 +341,8 @@ class MainWindow:
 				self.add_label(self.bdaybox, child)
 
 		# FIELD - note
-		if not has_child(self.vcard, "note"): self.vcard.add("note")
+		if not has_child(self.vcard, "note"):
+			self.vcard.add("note")
 		if not len(self.notebox.get_children()) > 0:
 			sep = gtk.HSeparator() ; sep.show()
 			self.notebox.pack_start(sep, False)
@@ -370,35 +350,27 @@ class MainWindow:
 		else:
 			textview = self.notebox.get_children()[1].get_children()[1].get_child()
 			textview.get_buffer().set_text(unescape(self.vcard.note.value))
-		self.notebox.show_all()
-
-		self.editButton_clicked(edit=edit)
+		#self.notebox.show_all()
 
 		self.table.show()
 
 		# FIELD - photo
 		def load_photo():
 			pixbuf = None
+			self.has_photo = False
 			if has_child(self.vcard, "photo"):
 				self.photoImage.show()
-				data = None
-				# load data or decode data
-				if "VALUE" in self.vcard.photo.params:
-					try:
+				try:
+					data = None
+					# load data or decode data
+					if "VALUE" in self.vcard.photo.params:
 						import urllib
 						url = urllib.urlopen(self.vcard.photo.value)
 						data = url.read()
 						url.close()
-					except:
-						pass
-					self.photodata = self.vcard.photo.value
-					self.photodatatype = "URI"
-				elif "ENCODING" in self.vcard.photo.params:
-					data = self.vcard.photo.value
-					self.photodata = self.vcard.photo.value
-					self.photodatatype = "B64"
-				# try to load photo
-				try:
+					elif "ENCODING" in self.vcard.photo.params:
+						data = self.vcard.photo.value
+
 					loader = gtk.gdk.PixbufLoader()
 					loader.write(data)
 					loader.close()
@@ -406,14 +378,13 @@ class MainWindow:
 					self.has_photo = True
 				except:
 					self.has_photo = False
-			else:
-				self.has_photo = False
 
 			self.photoImage.set_from_pixbuf(pixbuf)
 
 		gobject.idle_add(load_photo)
 
 	def clear(self):
+		self.iter = None
 		self.vcard = None
 		self.photoImage.clear()
 		self.tree.get_widget("fullnameLabel").set_text("")
@@ -440,6 +411,10 @@ class MainWindow:
 					self.add_label(box, child)
 
 	def add_label(self, box, content):
+		def removeButton_clicked(button, rbox, rcontent):
+			self.vcard.remove(rcontent)
+			rbox.destroy()
+
 		hbox = gtk.HBox(False, 6)
 
 		try:
@@ -450,7 +425,7 @@ class MainWindow:
 		# caption
 		captionbox = gtk.VBox()
 		caption = CaptionField(content.name, paramlist)
-		caption.removeButton.connect_object("clicked", gtk.Widget.destroy, hbox)
+		caption.removeButton.connect("clicked", removeButton_clicked, hbox, content)
 		captionbox.pack_start(caption, False)
 		hbox.pack_start(captionbox, False)
 		self.hsizegroup.add_widget(caption)
@@ -463,7 +438,6 @@ class MainWindow:
 			# multiline label
 			scrolledwindow = gtk.ScrolledWindow()
 			scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_NEVER)
-			scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
 
 			textbuffer = gtk.TextBuffer()
 			textbuffer.set_text(unescape(content.value))
@@ -494,7 +468,15 @@ class MainWindow:
 		return False
 
 	def newButton_clicked(self, widget):
+		self.check_if_new()
+		self.check_if_changed()
+
+		if self.import_mode:
+			self.revertButton_clicked()
+
 		vcard = vobject.vCard()
+		vcard.add("prodid").value = "Arkadas 1.0"
+		vcard.add("uid").value = uuid()
 		vcard.add("n")
 		vcard.add("fn")
 		vcard.add("tel")
@@ -503,11 +485,19 @@ class MainWindow:
 		vcard.tel.type_paramlist = ["HOME", "VOICE", "PREF"]
 		vcard.email.type_paramlist = ["HOME", "INTERNET", "PREF"]
 		vcard.serialize()
-		vcard.filename = None
-		vcard.iter = self.contactData.append([_("Unnamed"), "", vcard])
+
+		filename = os.path.join(self.contact_dir, vcard.uid.value)
+		save_contact(vcard, filename)
+
+		iter = self.contactData.append([_("Unnamed"), "", filename])
+
 		self.contactSelection.unselect_all()
-		self.contactSelection.select_iter(vcard.iter)
-		self.view_contact(True)
+		print iter
+		self.contactSelection.select_iter(iter)
+		self.iter = iter
+		self.vcard = vcard
+		self.parse_contact()
+		self.editButton_clicked()
 		self.is_new = True
 		self.undoButton.hide()
 		self.namechangeButton_clicked(None)
@@ -528,8 +518,15 @@ class MainWindow:
 		dialog.add_filter(filter)
 
 		if dialog.run() == gtk.RESPONSE_OK:
+			last = None
 			for filename in dialog.get_filenames():
-				self.import_contact(filename, dialog.get_extra_widget().get_active())
+				last = self.import_contact(filename, dialog.get_extra_widget().get_active())
+			if last is not None:
+				self.contactSelection.unselect_all()
+				self.contactSelection.select_iter(last)
+
+			if dialog.get_extra_widget().get_active():
+				self.revertButton_clicked()
 
 		dialog.destroy()
 
@@ -562,7 +559,7 @@ class MainWindow:
 				for path in paths:
 					iters.append(model.get_iter(path))
 				for iter in iters:
-					filename = model[iter][2].filename
+					filename = model[iter][2]
 					try:
 						os.remove(filename)
 						self.contactData.remove(iter)
@@ -592,18 +589,31 @@ class MainWindow:
 
 	def copyButton_clicked(self, widget, name):
 		(model, paths) = self.contactSelection.get_selected_rows()
-		vcard = model[paths[0]][2]
+		vcard = load_contact(model[paths[0]][2])
 		value = vcard.getChildValue(name)
 		if value is not None:
 			if name == "fn": value = unescape(value)
 			self.clipboard.set_text(value)
+			msg(_("Successfully copied <b>%s</b> to clipboard.") % value, self.window)
 
 	def importButton_clicked(self, widget):
 		(model, paths) = self.contactSelection.get_selected_rows()
 		for path in paths:
-			vcard = model[path][2]
-			vcard.filename = None
-			self.saveButton_clicked()
+			vcard = load_contact(model[path][2])
+			if vcard is None: continue
+			print vcard
+			try:
+				if not has_child(vcard, "prodid"):
+					vcard.add("prodid").value = "Arkadas 1.0"
+				if not has_child(vcard, "uid"):
+					vcard.add("uid").value = uuid()
+
+				filename = os.path.join(self.contact_dir, vcard.uid.value)
+				save_contact(vcard, filename)
+			except:
+				raise
+
+		msg(_("Successfully imported the selected contacts."), self.window)
 
 	def exportButton_clicked(self, widget):
 		pass
@@ -629,10 +639,10 @@ class MainWindow:
 		aboutdialog.run()
 		aboutdialog.destroy()
 
-	def revertButton_clicked(self, widget):
+	def revertButton_clicked(self, widget=None):
 		self.check_if_changed()
 		self.import_mode = False
-		widget.hide()
+		self.revertButton.hide()
 		self.load_contacts()
 
 	def addButton_clicked(self, button):
@@ -673,7 +683,7 @@ class MainWindow:
 
 	def prevButton_clicked(self, button):
 		try:
-			cur_path = self.contactData.get_path(self.vcard.iter)[0]
+			cur_path = self.contactData.get_path(self.iter)[0]
 		except:
 			cur_path = None
 
@@ -686,7 +696,7 @@ class MainWindow:
 
 	def nextButton_clicked(self, button):
 		try:
-			cur_path = self.contactData.get_path(self.vcard.iter)[0]
+			cur_path = self.contactData.get_path(self.iter)[0]
 		except:
 			cur_path = None
 
@@ -698,9 +708,13 @@ class MainWindow:
 		self.contactSelection.select_path((0,))
 
 	def undoButton_clicked(self, button):
-		vcard = self.vcard
+		iter = self.iter
+		self.edit = False
 		self.clear()
-		self.load_contact(vcard)
+		self.iter = iter
+		self.vcard = load_contact(self.contactData[iter][2])
+		self.parse_contact()
+		self.editButton_clicked(edit=False)
 
 	def editButton_clicked(self, button=None, edit=True):
 		self.edit = edit
@@ -743,6 +757,8 @@ class MainWindow:
 
 		scrolledwindow = self.notebox.get_children()[1].get_children()[1]
 		textview = scrolledwindow.get_child()
+		textbuffer = textview.get_buffer()
+
 		if edit: scrolledwindow.set_shadow_type(gtk.SHADOW_IN)
 		else: scrolledwindow.set_shadow_type(gtk.SHADOW_NONE)
 
@@ -750,111 +766,45 @@ class MainWindow:
 		textview.set_right_margin(2 * edit)
 		textview.set_editable(edit)
 
+		start, end = textbuffer.get_bounds()
+		text = textbuffer.get_text(start, end).strip()
+		#if len(text.replace(" ", "")) > 0:
+		#	self.vcard.note.value = text
+		#else:
+		#	self.vcard.remove(self.vcard.note)
+
+
 	def saveButton_clicked(self, button=None):
 		if len(unescape(self.vcard.fn.value)) > 0:
 			self.editButton_clicked(edit=False)
 			self.is_new = False
-			new_vcard = vobject.vCard()
-			new_vcard.add("prodid").value = "Arkadas 1.0"
-			if has_child(self.vcard, "uid"):
-				new_vcard.add("uid").value = uuid()
 
-			if self.vcard.version.value == "3.0":
-				new_vcard.add(self.vcard.n)
+			filename = self.contactData[self.iter][2]
+
+			if save_contact(self.vcard, filename):
+				sort_string = self.vcard.n.value.family + " " + self.vcard.n.value.given + " " + self.vcard.n.value.additional
+				self.contactData[self.iter][0] = unescape(self.vcard.fn.value)
+				self.contactData[self.iter][1] = sort_string
 			else:
-				n = self.vcard.n.value.split(";")
-				new_vcard.add("n")
-				new_vcard.n.value = vobject.vcard.Name(n[0], n[1], n[2], n[3], n[4])
-			new_vcard.add(self.vcard.fn)
-			if has_child(self.vcard, "nickname"):
-				new_vcard.add(self.vcard.nickname)
-			if has_child(self.vcard, "org"):
-				new_vcard.add(self.vcard.org)
-			if has_child(self.vcard, "title"):
-				new_vcard.add(self.vcard.title)
-
-			if self.has_photo:
-				photo = new_vcard.add("photo")
-				if self.photodatatype == "URI":
-					photo.value_param = "URI"
-				else:
-					photo.encoding_param = "b"
-				photo.value = self.photodata
-
-			for name in ("label", "mailer", "tz", "geo", "role", "logo", "agent",\
-						  "categories", "sort-string", "sound", "class", "key", ):
-				if has_child(self.vcard, name):
-					new_vcard.add(self.vcard.contents[name][0])
-
-			for child in self.table.get_children():
-				if type(child) == EventVBox:
-					for hbox in child.get_children():
-						if type(hbox) == gtk.HBox:
-							field = hbox.get_children()[1]
-							new_vcard.add(field.content)
-
-			textview = self.notebox.get_children()[1].get_children()[1].get_child()
-			textbuffer = textview.get_buffer()
-			start, end = textbuffer.get_bounds()
-			text = textbuffer.get_text(start, end).strip()
-			if len(text) > 0:
-				new_vcard.add("note")
-				new_vcard.note.value = escape(text)
-
-			try:
-				iter = self.vcard.iter
-				filename = os.path.join(self.contact_dir, unescape(self.vcard.fn.value) + ".vcf")
-
-				if self.vcard.filename is not None:
-					if not filename == self.vcard.filename:
-						if not self.vcard.filename.startswith(self.contact_dir):
-							filename = self.vcard.filename
-						else:
-							os.remove(self.vcard.filename)
-
-				new_file = file(filename, "w")
-				new_file.write(new_vcard.serialize())
-				new_file.close()
-
-				self.vcard = new_vcard
-
-				self.vcard.filename = filename
-				self.vcard.iter = iter
-				if self.vcard.iter is not None:
-					sort_string = self.vcard.n.value.family + " " + self.vcard.n.value.given + " " + self.vcard.n.value.additional
-					self.contactData[self.vcard.iter][0] = unescape(self.vcard.fn.value)
-					self.contactData[self.vcard.iter][1] = sort_string
-					self.contactData[self.vcard.iter][2] = self.vcard
-			except:
-				pass
+				error(_("Unable to save the contact."), self.window)
 		else:
-			errordialog = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Can't save, please enter a name."))
-			errordialog.run()
-			errordialog.destroy()
+			error(_("Can't save, please enter a name."), self.window)
 
 	def imagechangeButton_clicked(self, button):
 		def update_preview(filechooser):
 			filename = filechooser.get_preview_filename()
-			pixbuf = None
-			try:
-				pixbuf = gtk.gdk.PixbufAnimation(filename).get_static_image()
-				width = pixbuf.get_width()
-				height = pixbuf.get_height()
-				if width > height:
-					pixbuf = pixbuf.scale_simple(128, int(float(height)/width*128), gtk.gdk.INTERP_HYPER)
-				else:
-					pixbuf = pixbuf.scale_simple(int(float(width)/height*128), 128, gtk.gdk.INTERP_HYPER)
-			except:
-				pass
-			if pixbuf == None:
+			pixbuf = get_pixbuf_of_size_from_file(filename, 128)
+			if pixbuf is None:
 				pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, 1, 8, 128, 128)
 				pixbuf.fill(0x00000000)
+			else:
+				pixbuf = get_pad_pixbuf(pixbuf, 128, 128)
 			preview.set_from_pixbuf(pixbuf)
-			have_preview = True
-			filechooser.set_preview_widget_active(have_preview)
+			filechooser.set_preview_widget_active(True)
 			del pixbuf
 
 		dialog = gtk.FileChooserDialog(title=_("Open Image"),action=gtk.FILE_CHOOSER_ACTION_OPEN,buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+		dialog.set_default_response(gtk.RESPONSE_OK)
 		filter = gtk.FileFilter()
 		filter.set_name(_("Images"))
 		filter.add_pixbuf_formats()
@@ -867,7 +817,13 @@ class MainWindow:
 		dialog.set_preview_widget(preview)
 		dialog.set_use_preview_label(False)
 		dialog.connect("update-preview", update_preview)
-		dialog.set_default_response(gtk.RESPONSE_OK)
+
+		vbox = gtk.VBox()
+		dialog.set_extra_widget(vbox)
+
+		vbox.add(gtk.CheckButton(_("Scaledown to 200 Pixel")))
+		vbox.add(gtk.CheckButton(_("Crop image")))
+		vbox.show_all()
 
 		if dialog.run() == gtk.RESPONSE_OK:
 			filename = dialog.get_preview_filename()
@@ -879,16 +835,27 @@ class MainWindow:
 				loader = gtk.gdk.PixbufLoader()
 				loader.write(data)
 				loader.close()
-				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
-
-				self.photodata = data
-				self.photodatatype = "B64"
+				loaderpixbuf = loader.get_pixbuf()
+				if vbox.get_children()[0].get_active():
+					loaderpixbuf = get_pixbuf_of_size(loaderpixbuf, 200)
+					data = get_pixbuf_data(loaderpixbuf)
+				if vbox.get_children()[1].get_active():
+					loaderpixbuf = get_crop_pixbuf(loaderpixbuf)
+					data = get_pixbuf_data(loaderpixbuf)
+				pixbuf = get_pad_pixbuf(get_pixbuf_of_size(loaderpixbuf, 64), 64, 64)
 				self.imageremoveButton.show()
 				self.has_photo = True
 			except:
+				raise
 				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
 				self.imageremoveButton.hide()
 				self.has_photo = False
+
+			if self.has_photo:
+				if not has_child(self.vcard, "photo"):
+					self.vcard.add("photo")
+				self.vcard.photo.encoding_param = "b"
+				self.vcard.photo.value = data
 			self.photoImage.set_from_pixbuf(pixbuf)
 
 		dialog.destroy()
@@ -899,6 +866,7 @@ class MainWindow:
 		self.photoImage.set_from_pixbuf(pixbuf)
 		self.has_photo = False
 		button.hide()
+		self.vcard.remove(self.vcard.photo)
 
 	def namechangeButton_clicked(self, button):
 		def combo_changed(combo):
@@ -929,7 +897,6 @@ class MainWindow:
 			testEntry.set_text(text.replace("  ", " ").strip())
 
 		dialog = self.tree.get_widget("namechangeDialog")
-		dialog.set_default_response(gtk.RESPONSE_OK)
 
 		combo = self.tree.get_widget("nameCombo")
 		combo.set_active(1)
@@ -947,12 +914,11 @@ class MainWindow:
 		nameEntry7 = self.tree.get_widget("nameEntry7")
 		nameEntry8 = self.tree.get_widget("nameEntry8")
 
-		if has_child(self.vcard, "n"):
-			nameEntry1.set_text(self.vcard.n.value.given)
-			nameEntry2.set_text(self.vcard.n.value.additional)
-			nameEntry3.set_text(self.vcard.n.value.family)
-			nameEntry4.set_text(self.vcard.n.value.prefix)
-			nameEntry5.set_text(self.vcard.n.value.suffix)
+		nameEntry1.set_text(self.vcard.n.value.given)
+		nameEntry2.set_text(self.vcard.n.value.additional)
+		nameEntry3.set_text(self.vcard.n.value.family)
+		nameEntry4.set_text(self.vcard.n.value.prefix)
+		nameEntry5.set_text(self.vcard.n.value.suffix)
 		nameEntry6.set_text(unescape(self.vcard.getChildValue("nickname", "")))
 		nameEntry7.set_text(unescape(self.vcard.getChildValue("title", "")))
 		nameEntry8.set_text(unescape(self.vcard.getChildValue("org", "")))
@@ -963,7 +929,6 @@ class MainWindow:
 		if dialog.run() == gtk.RESPONSE_OK:
 			combo_changed(combo)
 
-			if not has_child(self.vcard, "n"): self.vcard.add("n")
 			self.vcard.n.value.given = nameEntry1.get_text().replace("  "," ").strip()
 			self.vcard.n.value.additional = nameEntry2.get_text().replace("  "," ").strip()
 			self.vcard.n.value.family = nameEntry3.get_text().replace("  "," ").strip()
@@ -1009,16 +974,33 @@ class MainWindow:
 		self.tree.get_widget("countLabel").set_text(text)
 
 	def contactList_clicked(self, *args):
-		self.view_contact(True)
+		self.contactSelection_change(edit=True)
 
-	def contactSelection_change(self, selection):
+	def contactSelection_change(self, selection=None, edit=False):
 		selected = (self.contactSelection.count_selected_rows() > 0)
 
 		self.tree.get_widget("contactMenuitem").set_property("visible", selected)
 		self.tree.get_widget("importItem").set_property("visible", self.import_mode)
 
 		if selected:
-			self.view_contact()
+			(model, paths) = self.contactSelection.get_selected_rows()
+
+			self.check_if_new()
+			self.check_if_changed()
+
+			again = False
+			if self.iter is not None:
+				if model.get_path(self.iter) == paths[0]:
+					again = True
+
+			if not again:
+				self.clear()
+				self.iter = model.get_iter(paths[0])
+				self.vcard = load_contact(model[paths[0]][2])
+				self.parse_contact()
+
+			self.editButton_clicked(edit=edit)
+
 		else:
 			self.clear()
 
@@ -1355,13 +1337,15 @@ class BirthdayField(gtk.HBox):
 	def __init__(self, content, tooltips):
 		gtk.HBox.__init__(self)
 
+		self.set_no_show_all(True)
+
 		self.content = content
 		self.tooltips = tooltips
 
 		self.build_interface()
-		self.show_all()
 
 		self.set_editable(False)
+		self.show()
 
 	def build_interface(self):
 		self.label = gtk.Label()
@@ -1429,6 +1413,50 @@ class EventVBox(gtk.VBox):
 #--------------
 # Helpfunctions
 #--------------
+def load_contact(filename):
+	try:
+		vcard = vobject.readOne(file(filename, "r"))
+		if not vcard.version.value == "3.0":
+			n = vcard.n.value.split(";")
+			vcard.n.value = vobject.vcard.Name(**dict(zip(vobject.vcard.NAME_ORDER, n)))
+			vcard.n.params = {}
+			if not has_child(vcard, "fn"):
+				fn = ""
+				for i in (3,1,2,0,4):
+					fn += n[i].strip() + " "
+				vcard.add("fn")
+				vcard.fn.value = fn.replace("  "," ").strip()
+
+			vcard = convert_contact(vcard)
+	except:
+		raise
+		return None
+	return vcard
+
+def save_contact(vcard, filename):
+	try:
+		data = vcard.serialize()
+		f = file(filename, "w")
+		f.write(data)
+		f.close()
+	except:
+		raise
+		return False
+	return True
+
+def convert_contact(vcard):
+	new_vcard = vobject.vCard()
+
+	new_vcard.add("n").value = vcard.n.value
+
+	for key in vcard.contents:
+		for content in vcard.contents[key]:
+			if content.name.lower() not in ("version", "n"):
+				new_vcard.add(content)
+
+	new_vcard.serialize()
+	return new_vcard
+
 def escape(s):
 	s = s.replace(",", "\,")
 	s = s.replace(";", "\;")
@@ -1471,41 +1499,78 @@ def has_child(vcard, childName, childNumber = 0):
 	except:
 		return False
 
-def get_pixbuf_of_size(pixbuf, size, crop = False):
+def get_pixbuf_of_size(pixbuf, size):
+	image_width = pixbuf.get_width()
+	image_height = pixbuf.get_height()
+	if image_width-size > image_height-size:
+		image_height = int(size/float(image_width)*image_height)
+		image_width = size
+	else:
+		image_width = int(size/float(image_height)*image_width)
+		image_height = size
+	crop_pixbuf = pixbuf.scale_simple(image_width, image_height, gtk.gdk.INTERP_HYPER)
+	return crop_pixbuf
+
+def get_crop_pixbuf(pixbuf):
 	image_width = pixbuf.get_width()
 	image_height = pixbuf.get_height()
 	image_xdiff = 0
 	image_ydiff = 0
-	if crop:
-		if image_width-size > image_height-size:
-			image_xdiff = int((image_width-image_height)/2)
-			image_width = image_height
-		else:
-			image_ydiff = int((image_height-image_width)/2)
-			image_height = image_width
-		new_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, image_width, image_height)
-		new_pixbuf.fill(0x00000000)
-		pixbuf.copy_area(image_xdiff, image_ydiff, image_width, image_height, new_pixbuf, 0, 0)
-		crop_pixbuf = new_pixbuf.scale_simple(size, size, gtk.gdk.INTERP_HYPER)
+	if image_width > image_height:
+		image_xdiff = int((image_width-image_height)/2)
+		image_width = image_height
 	else:
-		if image_width-size > image_height-size:
-			image_height = int(size/float(image_width)*image_height)
-			image_width = size
-		else:
-			image_width = int(size/float(image_height)*image_width)
-			image_height = size
-		crop_pixbuf = pixbuf.scale_simple(image_width, image_height, gtk.gdk.INTERP_HYPER)
-	return crop_pixbuf
+		image_ydiff = int((image_height-image_width)/2)
+		image_height = image_width
+	new_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, image_width, image_height)
+	new_pixbuf.fill(0x00000000)
+	pixbuf.copy_area(image_xdiff, image_ydiff, image_width, image_height, new_pixbuf, 0, 0)
+	del pixbuf
+	return new_pixbuf
+
+def get_pad_pixbuf(pixbuf, width, height):
+	image_width = pixbuf.get_width()
+	image_height = pixbuf.get_height()
+	x_pos = int((width - image_width)/2)
+	y_pos = int((height - image_height)/2)
+	new_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, width, height)
+	new_pixbuf.fill(0xffff00)
+	pixbuf.copy_area(0, 0, image_width, image_height, new_pixbuf, x_pos, y_pos)
+	del pixbuf
+	return new_pixbuf
 
 def get_pixbuf_of_size_from_file(filename, size):
 	try:
 		pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
 		pixbuf = get_pixbuf_of_size(pixbuf, size)
+		return pixbuf
 	except:
-		pass
-	return pixbuf
+		return None
 
-def browser_load(docslink, parent = None):
+
+def get_pixbuf_data(pixbuf):
+	try:
+		import tempfile
+		tmpfile = tempfile.mkstemp()[1]
+		pixbuf.save(tmpfile, "jpeg", {"quality" : "90"})
+		imagefile = file(tmpfile, "r")
+		data = imagefile.read()
+		imagefile.close()
+		os.remove(tmpfile)
+		return data
+	except:
+		return None
+
+def error(text, window=None):
+	msg(text, window, type=gtk.MESSAGE_WARNING)
+
+def msg(text, window=None, type=gtk.MESSAGE_INFO):
+	dialog = gtk.MessageDialog(window, gtk.DIALOG_MODAL, type, gtk.BUTTONS_CLOSE, text)
+	dialog.set_property("use-markup", True)
+	dialog.run()
+	dialog.destroy()
+
+def browser_load(docslink, window=None):
 	import subprocess
 	try:
 		pid = subprocess.Popen(["gnome-open", docslink]).pid
@@ -1522,31 +1587,34 @@ def browser_load(docslink, parent = None):
 					try:
 						pid = subprocess.Popen(["opera", docslink]).pid
 					except:
-						error_dialog = gtk.MessageDialog(parent, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, _("Unable to launch a suitable browser."))
-						error_dialog.run()
-						error_dialog.destroy()
+						error(_("Unable to launch a suitable browser."), window)
 
 def find_path(filename):
-	dirs = (os.path.join(sys.prefix, filename),
+	dirs = (os.path.join(os.path.split(__file__)[0], filename),
+			os.path.join(os.path.split(__file__)[0], "pixmaps", filename),
+			os.path.join(os.path.split(__file__)[0], "share", filename),
+			os.path.join(__file__.split("/lib")[0], "share", "pixmaps", filename),
+			os.path.join(sys.prefix, filename),
 			os.path.join(sys.prefix, "share", filename),
 			os.path.join(sys.prefix, "share", "arkadas", filename),
 			os.path.join(sys.prefix, "share", "pixmaps", filename),
-			os.path.join(os.path.split(__file__)[0], filename),
-			os.path.join(os.path.split(__file__)[0], "pixmaps", filename),
-			os.path.join(os.path.split(__file__)[0], "share", filename),
-			os.path.join(__file__.split("/lib")[0], "share", "pixmaps", filename),)
+			)
 	for dir in dirs:
 		if os.path.exists(dir):
 			return dir
 	return ""
 
-def uuid():
-	pipe = os.popen("uuidgen", "r")
-	if pipe:
-		data = pipe.readline().strip("\r\n")
-		pipe.close()
-	else:
-		data = ""
+def uuid(*args):
+	import time, random, md5
+
+	t = long( time.time() * 1000 )
+	r = long( random.random()*100000000000000000L )
+	try:
+		a = socket.gethostbyname( socket.gethostname() )
+	except:
+		a = random.random()*100000000000000000L
+	data = str(t)+' '+str(r)+' '+str(a)+' '+str(args)
+	data = md5.md5(data).hexdigest()
 	return data
 
 if __name__ == "__main__":
