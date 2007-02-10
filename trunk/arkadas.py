@@ -973,6 +973,10 @@ class MainWindow:
 		else: text += _(" contacts")
 		self.tree.get_widget("countLabel").set_text(text)
 
+	def contactList_pressed(self, widget, event):
+		if event.button == 3 and self.contactSelection.count_selected_rows() > 0:
+			self.tree.get_widget("menu2").popup(None, None, None, event.button, event.time)
+
 	def contactList_clicked(self, *args):
 		self.contactSelection_change(edit=True)
 

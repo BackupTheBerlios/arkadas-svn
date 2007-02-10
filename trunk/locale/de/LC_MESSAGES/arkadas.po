@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2007-01-28 20:02+0100\n"
+"POT-Creation-Date: 2007-02-09 23:50+0100\n"
 "PO-Revision-Date: 2007-01-28 19:47-0800\n"
 "Last-Translator: Erdem Cakir <1988er@gmail.com>\n"
 "Language-Team: German <de@li.org>\n"
@@ -115,47 +115,15 @@ msgstr "BBS"
 msgid "PCS"
 msgstr "PCS"
 
-#: arkadas.py:80
-msgid "Address Book"
-msgstr "Adressbuch"
+#: arkadas.py:260
+msgid "Unable to load the contact."
+msgstr "Der Kontakt konnte nicht geladen werden."
 
-#: arkadas.py:103
-msgid "Create a new contact"
-msgstr "Neuen Kontakt erstellen"
-
-#: arkadas.py:104
-msgid "Open and import contacts"
-msgstr "Kontakte öffnen und importieren"
-
-#: arkadas.py:105
-msgid "Delete the selected contact"
-msgstr "Ausgewählten Kontakt löschen"
-
-#: arkadas.py:106
-msgid "Switch between fullscreen view"
-msgstr "Zwischen Vollbildansicht wechseln"
-
-#: arkadas.py:107
-msgid "_Copy Fullname"
-msgstr "_Kopiere vollen Namen"
-
-#: arkadas.py:108
-msgid "Copy E_mail"
-msgstr "Kopiere E_mail"
-
-#: arkadas.py:109
-msgid "Copy N_umber"
-msgstr "Kopiere N_ummer"
-
-#: arkadas.py:110
-msgid "Configure the application"
-msgstr "Programmeinstellungen"
-
-#: arkadas.py:227
+#: arkadas.py:288
 msgid "Save the changes to contact before closing?"
 msgstr "Änderungen vor dem Schließen speichern?"
 
-#: arkadas.py:228
+#: arkadas.py:289
 #, python-format
 msgid ""
 "If you don't save, changes you made to <b>%s</b> will be permanently lost."
@@ -163,159 +131,248 @@ msgstr ""
 "Wenn Sie nicht abspeichern gehen die Veränderungen an <b>%s</b> "
 "unwiderruflich verloren."
 
-#: arkadas.py:261 arkadas.py:399
+#: arkadas.py:492
 msgid "Unnamed"
 msgstr "Unbenannt"
 
-#: arkadas.py:268
-msgid "Open Contact"
-msgstr "Kontakt öffnen"
+#: arkadas.py:506
+msgid "Open Contacts"
+msgstr "Kontakte öffnen"
 
-#: arkadas.py:270
-msgid "vCard Files"
-msgstr "vCard Dateien"
-
-#: arkadas.py:275 arkadas.py:775
-msgid "All Files"
-msgstr "Alle Dateien"
-
-#: arkadas.py:278
+#: arkadas.py:509
 msgid "Import to contactlist"
 msgstr "In die Kontaktliste importieren"
 
-#: arkadas.py:303
-msgid "Unable to load the contact."
-msgstr "Der Kontakt konnte nicht geladen werden."
+#: arkadas.py:511
+msgid "vCard Files"
+msgstr "vCard Dateien"
 
-#: arkadas.py:315
+#: arkadas.py:516 arkadas.py:813
+msgid "All Files"
+msgstr "Alle Dateien"
+
+#: arkadas.py:540
+msgid "Remove Contacts"
+msgstr "Kontakte löschen"
+
+#: arkadas.py:541
+#, fuzzy
+msgid ""
+"You are about to remove the selected contacts from your contactlist.\n"
+"Do you want to continue?"
+msgstr ""
+"Sie sind dabei die markierten Kontakte zu löschen.\n"
+"Sind Sie sich sicher?"
+
+#: arkadas.py:544
 msgid "Remove Contact"
 msgstr "Kontakt löschen"
 
-#: arkadas.py:316
+#: arkadas.py:545
 #, python-format
 msgid ""
 "You are about to remove <b>%s</b> from your contactlist.\n"
 "Do you want to continue?"
 msgstr ""
-"Sie sind dabei den Eintrag von <b>%s</b> zu löschen.\n"
+"Sie sind dabei den Kontakt <b>%s</b> zu löschen.\n"
 "Sind Sie sich sicher?"
 
-#: arkadas.py:352
+#: arkadas.py:551
+msgid "Delete Contacts"
+msgstr "Kontakte löschen"
+
+#: arkadas.py:553
+msgid "Delete Contact"
+msgstr "Kontakt löschen"
+
+#: arkadas.py:597
+msgid "Successfully copied <b>%s</b> to clipboard."
+msgstr "Erfolgreich <b>%s</b> in die Zwischenablage kopiert."
+
+#: arkadas.py:616
+msgid "Successfully imported the selected contacts."
+msgstr "Erfolgreich die ausgewählten Kontakte importiert."
+
+#: arkadas.py:630
 msgid "A lightweight GTK+ Contact-Manager based on vCards."
 msgstr "Ein ressourcensparender GTK+ Kontakt-Verwalter, basierend auf vCards."
 
-#: arkadas.py:374
-msgid "no contacts"
-msgstr "Keine Kontakte"
+#: arkadas.py:789
+msgid "Unable to save the contact."
+msgstr "Der Kontakt konnte nicht gespeichert werden."
 
-#: arkadas.py:375
-msgid " contact"
-msgstr " Kontakt"
-
-#: arkadas.py:376
-msgid " contacts"
-msgstr " Kontakte"
-
-#: arkadas.py:456
-msgid "Add field"
-msgstr "Feld hinzufügen"
-
-#: arkadas.py:466
-msgid "Undo changes"
-msgstr "Veränderungen widerrufen"
-
-#: arkadas.py:536
-msgid "Change photo"
-msgstr "Foto ändern"
-
-#: arkadas.py:542
-msgid "Remove photo"
-msgstr "Foto entfernen"
-
-#: arkadas.py:568
-msgid "Change name"
-msgstr "Namen ändern"
-
-#: arkadas.py:740
+#: arkadas.py:791
 msgid "Can't save, please enter a name."
 msgstr "Speichern nicht möglich! Bitte geben Sie einen Namen ein."
 
-#: arkadas.py:769
+#: arkadas.py:806
 msgid "Open Image"
 msgstr "Foto öffnen"
 
-#: arkadas.py:771
+#: arkadas.py:809
 msgid "Images"
 msgstr "Fotos"
 
-#: arkadas.py:894
-msgid "Edit Contact Name"
-msgstr "Namen des Kontaktes ändern"
+#: arkadas.py:824
+msgid "Scaledown to 200 Pixel"
+msgstr "Verkleinern auf 200 Pixel"
 
-#: arkadas.py:906
-msgid "Honoric _Prefixes:"
-msgstr "Namens_titel:"
+#: arkadas.py:825
+msgid "Crop image"
+msgstr "Foto bescheiden"
 
-#: arkadas.py:912
-msgid "_Given name:"
-msgstr "_Vorname:"
+#: arkadas.py:971
+msgid "no contacts"
+msgstr "Keine Kontakte"
 
-#: arkadas.py:917
-msgid "_Additional names:"
-msgstr "_MIttelname:"
+#: arkadas.py:972
+msgid " contact"
+msgstr " Kontakt"
 
-#: arkadas.py:922
-msgid "_Family names:"
-msgstr "_Nachname:"
+#: arkadas.py:973
+msgid " contacts"
+msgstr " Kontakte"
 
-#: arkadas.py:927
-msgid "Honoric _Suffixes:"
-msgstr "Namens_zusätze:"
-
-#: arkadas.py:933
-msgid "For_matted name:"
-msgstr "For_matierung:"
-
-#: arkadas.py:936
-msgid "Simple Name"
-msgstr "Einfacher Name"
-
-#: arkadas.py:937
-msgid "Full Name"
-msgstr "Voller Name"
-
-#: arkadas.py:938
-msgid "Reverse Name with Comma"
-msgstr "Umgekehrter Name mit Komma"
-
-#: arkadas.py:939
-msgid "Reverse Name"
-msgstr "Umgekehrter Name"
-
-#: arkadas.py:950
-msgid "_Nickname:"
-msgstr "_Spitzname:"
-
-#: arkadas.py:955
-msgid "_Title/Role:"
-msgstr "_Titel/Rolle:"
-
-#: arkadas.py:960
-msgid "_Organization:"
-msgstr "_Organisation:"
-
-#: arkadas.py:1494
+#: arkadas.py:1362
 msgid "Day"
 msgstr "Tag"
 
-#: arkadas.py:1500
+#: arkadas.py:1368
 msgid "Month"
 msgstr "Monat"
 
-#: arkadas.py:1506
+#: arkadas.py:1374
 msgid "Year"
 msgstr "Jahr"
 
-#: arkadas.py:1693
+#: arkadas.py:1590
 msgid "Unable to launch a suitable browser."
 msgstr "Es konnte kein passender Webbrowser geladen werden."
+
+#: arkadas.glade:6
+msgid "Address Book"
+msgstr "Adressbuch"
+
+#: arkadas.glade:20
+msgid "Contact_s"
+msgstr "Ko_ntakte"
+
+#: arkadas.glade:64
+msgid "_Contact"
+msgstr "_Kontakt"
+
+#: arkadas.glade:95
+msgid "_Import"
+msgstr "_Importieren"
+
+#: arkadas.glade:103
+msgid "E_xport"
+msgstr "E_xportieren"
+
+#: arkadas.glade:129
+msgid "_View"
+msgstr "_Ansicht"
+
+#: arkadas.glade:183
+msgid "_Help"
+msgstr "_Hilfe"
+
+#: arkadas.glade:212
+msgid "Create a new contact"
+msgstr "Neuen Kontakt erstellen"
+
+#: arkadas.glade:223
+msgid "Open and import contacts"
+msgstr "Kontakte öffnen und importieren"
+
+#: arkadas.glade:234
+msgid "Delete the selected contacts"
+msgstr "Ausgewählte Kontakte löschen"
+
+#: arkadas.glade:254
+msgid "Switch between fullscreen view"
+msgstr "Zwischen Vollbildansicht wechseln"
+
+#: arkadas.glade:274
+msgid "Configure the application"
+msgstr "Einstellungen am Programm vornehmen"
+
+#: arkadas.glade:362
+msgid "Change photo"
+msgstr "Foto ändern"
+
+#: arkadas.glade:379
+msgid "Remove photo"
+msgstr "Foto entfernen"
+
+#: arkadas.glade:460
+msgid "Change name and title"
+msgstr "Namen und Titel ändern"
+
+#: arkadas.glade:509
+msgid "Add Field"
+msgstr "Feld hinzufügen"
+
+#: arkadas.glade:636
+msgid "Edit Contact Name"
+msgstr "Namen des Kontaktes ändern"
+
+#: arkadas.glade:664
+msgid "Honoric _Prefixes:"
+msgstr "Namens_titel:"
+
+#: arkadas.glade:672
+msgid "_Given name:"
+msgstr "_Vorname:"
+
+#: arkadas.glade:684
+msgid "_Additional names:"
+msgstr "_Mittelname:"
+
+#: arkadas.glade:696
+msgid "_Family names:"
+msgstr "_Nachname:"
+
+#: arkadas.glade:708
+msgid "Honoric _Suffixes:"
+msgstr "Namens_zusätze:"
+
+#: arkadas.glade:720
+msgid "For_matted name:"
+msgstr "For_matierung:"
+
+#: arkadas.glade:838
+msgid ""
+"Simple Name\n"
+"Full Name\n"
+"Reverse Name with Comma\n"
+"Reverse Name"
+msgstr ""
+"Einfacher Name\n"
+"Voller Name\n"
+"Umgekehrter Name mit Komma\n"
+"Umgekehrter Name"
+
+#: arkadas.glade:866
+msgid "_Nickname:"
+msgstr "_Spitzname:"
+
+#: arkadas.glade:878
+msgid "_Title/Role:"
+msgstr "_Titel/Rolle:"
+
+#: arkadas.glade:890
+msgid "_Organization:"
+msgstr "_Organisation:"
+
+#~ msgid "_Copy Fullname"
+#~ msgstr "_Kopiere vollen Namen"
+
+#~ msgid "Copy E_mail"
+#~ msgstr "Kopiere E_mail"
+
+#~ msgid "Copy N_umber"
+#~ msgstr "Kopiere N_ummer"
+
+#~ msgid "Undo changes"
+#~ msgstr "Veränderungen widerrufen"
