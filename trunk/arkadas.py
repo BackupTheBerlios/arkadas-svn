@@ -82,7 +82,7 @@ class MainWindow:
 
 	def __init__(self):
 		gtk.window_set_default_icon_name("address-book")
-		self.tree = gtk.glade.XML(find_path("arkadas.glade"))
+		self.tree = gtk.glade.XML(find_path("arkadas.glade"), "mainWindow", "arkadas")
 
 		signals = {}
 		for attr in dir(self.__class__):
@@ -103,7 +103,7 @@ class MainWindow:
 		if len(args) > 0:
 			last = None
 			for arg in args:
-				last = self.import_contact(arg, True)
+				last = self.import_contact(arg)
 			if last is not None:
 				self.contactSelection.select_iter(last)
 

@@ -124,7 +124,6 @@ msgid "Save the changes to contact before closing?"
 msgstr "Änderungen vor dem Schließen speichern?"
 
 #: arkadas.py:289
-#, python-format
 msgid ""
 "If you don't save, changes you made to <b>%s</b> will be permanently lost."
 msgstr ""
@@ -156,7 +155,6 @@ msgid "Remove Contacts"
 msgstr "Kontakte löschen"
 
 #: arkadas.py:541
-#, fuzzy
 msgid ""
 "You are about to remove the selected contacts from your contactlist.\n"
 "Do you want to continue?"
@@ -169,7 +167,6 @@ msgid "Remove Contact"
 msgstr "Kontakt löschen"
 
 #: arkadas.py:545
-#, python-format
 msgid ""
 "You are about to remove <b>%s</b> from your contactlist.\n"
 "Do you want to continue?"
@@ -219,7 +216,7 @@ msgstr "Verkleinern auf 200 Pixel"
 
 #: arkadas.py:825
 msgid "Crop image"
-msgstr "Foto bescheiden"
+msgstr "Foto beschneiden"
 
 #: arkadas.py:971
 msgid "no contacts"
