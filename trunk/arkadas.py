@@ -4,8 +4,8 @@ import sys, os, datetime, gc, threading, socket
 import gtk, gtk.glade, gobject, pango
 
 # Test pygtk version
-if gtk.pygtk_version < (2, 6, 0):
-	sys.stderr.write("requires PyGTK 2.6.0 or newer.\n")
+if gtk.pygtk_version < (2, 8, 0):
+	sys.stderr.write("requires PyGTK 2.8.0 or newer.\n")
 	sys.exit(1)
 
 try:
@@ -65,6 +65,11 @@ tel_types = ("VOICE", "ISDN", "CELL", "FAX", "PAGER", "CAR", "VIDEO", "MODEM", "
 im_types = ("X-AIM", "X-GADU-GADU", "X-GROUPWISE", "X-ICQ", "X-IRC", "X-JABBER", "X-MSN", "X-NAPSTER", "X-YAHOO", "X-ZEPHYR")
 
 order = ["TEL", "EMAIL", "URL", "IM", "BDAY", "ADR", "WORK_TEL", "WORK_EMAIL", "WORK_ADR"]
+template = ["TEL", "EMAIL", "URL"]
+display_formats = ["%g %a %f", "%p %g %a %f %s", "%f, %g %a", "%f %g %a"]
+
+CONVERT_ON_LOAD = False
+DISPLAY_FORMAT = display_formats[0]
 
 gobject.threads_init()
 socket.setdefaulttimeout(30)
@@ -82,7 +87,8 @@ class MainWindow:
 
 	def __init__(self):
 		gtk.window_set_default_icon_name("address-book")
-		self.tree = gtk.glade.XML(find_path("arkadas.glade"), "mainWindow", "arkadas")
+		gtk.glade.textdomain("arkadas")
+		self.tree = gtk.glade.XML(find_path("arkadas.glade"))
 
 		signals = {}
 		for attr in dir(self.__class__):
@@ -125,7 +131,9 @@ class MainWindow:
 		self.contactList = self.tree.get_widget("contactList")
 		self.table = self.tree.get_widget("table")
 
-		self.addButton = self.tree.get_widget("addButton")
+		self.addCombo = self.tree.get_widget("addCombo")
+		self.prevButton = self.tree.get_widget("prevButton")
+		self.nextButton = self.tree.get_widget("nextButton")
 		self.undoButton = self.tree.get_widget("undoButton")
 		self.saveButton = self.tree.get_widget("saveButton")
 		self.editButton = self.tree.get_widget("editButton")
@@ -166,21 +174,21 @@ class MainWindow:
 		viewport = self.tree.get_widget("viewport")
 		viewport.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
 
-		# create type menus
-		self.addMenu = gtk.Menu()
+		# create type combo
+		model = gtk.ListStore(str, str, bool)
+
 		for name in ("TEL", "EMAIL", "ADR", "URL", "IM_CAP", "BDAY"):
 			if not name in ("BDAY", "IM_CAP", "URL"):
-				menuitem = gtk.MenuItem(types[name])
-				menuitem.connect("activate", self.addMenu_itemclick, "HOME", name)
-				self.addMenu.append(menuitem)
-				menuitem = gtk.MenuItem(types[name] + " (" + types["WORK"] + ")")
-				menuitem.connect("activate", self.addMenu_itemclick, "WORK", name)
-				self.addMenu.append(menuitem)
+				model.append([types[name], name, False])
+				model.append([types[name] + " (" + types["WORK"] + ")", name, True])
 			else:
-				menuitem = gtk.MenuItem(types[name])
-				menuitem.connect("activate", self.addMenu_itemclick, "", name)
-				self.addMenu.append(menuitem)
-		self.addMenu.show_all()
+				model.append([types[name], name, False])
+		self.addCombo.set_model(model)
+		cell = gtk.CellRendererText()
+		self.addCombo.pack_start(cell)
+		self.addCombo.add_attribute(cell, 'text', 0)
+		self.addCombo.prepend_text(_("Add Field"))
+		self.addCombo.set_active(0)
 
 		self.hsizegroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
 
@@ -245,8 +253,9 @@ class MainWindow:
 		return False
 
 	def add_to_list(self, vcard, filename):
+		fullname = format_fn(DISPLAY_FORMAT, **vcard.n.value.__dict__)
 		sort_string = vcard.n.value.family + " " + vcard.n.value.given + " " + vcard.n.value.additional
-		return self.contactData.append([unescape(vcard.fn.value), sort_string.replace("  "," ").strip(), filename])
+		return self.contactData.append([fullname, sort_string.replace("  "," ").strip(), filename])
 
 	def import_contact(self, filename, add=False):
 		if not self.import_mode:
@@ -262,6 +271,8 @@ class MainWindow:
 			return None
 
 		if add:
+			if vcard.version.value == "3.0":
+				vcard = convert_contact(vcard)
 			if not has_child(vcard, "prodid"):
 				vcard.add("prodid").value = "Arkadas 1.0"
 			if not has_child(vcard, "uid"):
@@ -341,47 +352,54 @@ class MainWindow:
 				self.add_label(self.bdaybox, child)
 
 		# FIELD - note
-		if not has_child(self.vcard, "note"):
+
+		try:
+			if len(self.vcard.note.value.strip()) == 0:
+				self.vcard.add("note")
+		except:
 			self.vcard.add("note")
+
 		if not len(self.notebox.get_children()) > 0:
-			sep = gtk.HSeparator() ; sep.show()
-			self.notebox.pack_start(sep, False)
+			self.notebox.pack_start(gtk.HSeparator(), False)
 			self.add_label(self.notebox, self.vcard.note)
 		else:
 			textview = self.notebox.get_children()[1].get_children()[1].get_child()
 			textview.get_buffer().set_text(unescape(self.vcard.note.value))
-		#self.notebox.show_all()
+
+		if len(self.vcard.note.value.strip()) > 0:
+			self.notebox.show_all()
 
 		self.table.show()
 
 		# FIELD - photo
-		def load_photo():
-			pixbuf = None
-			self.has_photo = False
-			if has_child(self.vcard, "photo"):
+		def load_photo(*args):
+			try:
+				data = None
+				# load data or decode data
+				if "VALUE" in self.vcard.photo.params:
+					import urllib
+					url = urllib.urlopen(self.vcard.photo.value)
+					data = url.read()
+					url.close()
+				elif "ENCODING" in self.vcard.photo.params:
+					data = self.vcard.photo.value
+
+				loader = gtk.gdk.PixbufLoader()
+				loader.write(data)
+				loader.close()
+				pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
+				self.has_photo = True
+			except:
+				pixbuf = None
+				self.has_photo = False
+
+			if self.iter == args[0]:
 				self.photoImage.show()
-				try:
-					data = None
-					# load data or decode data
-					if "VALUE" in self.vcard.photo.params:
-						import urllib
-						url = urllib.urlopen(self.vcard.photo.value)
-						data = url.read()
-						url.close()
-					elif "ENCODING" in self.vcard.photo.params:
-						data = self.vcard.photo.value
+				gobject.idle_add(self.photoImage.set_from_pixbuf,pixbuf)
 
-					loader = gtk.gdk.PixbufLoader()
-					loader.write(data)
-					loader.close()
-					pixbuf = get_pixbuf_of_size(loader.get_pixbuf(), 64)
-					self.has_photo = True
-				except:
-					self.has_photo = False
 
-			self.photoImage.set_from_pixbuf(pixbuf)
-
-		gobject.idle_add(load_photo)
+		if has_child(self.vcard, "photo"):
+			threading.Thread(target=load_photo, args=(self.iter,)).start()
 
 	def clear(self):
 		self.iter = None
@@ -394,8 +412,11 @@ class MainWindow:
 			if type(box) == EventVBox:
 				for child in box.get_children():
 					child.destroy()
+		self.notebox.hide_all()
 		self.table.hide()
-		self.addButton.hide()
+		self.addCombo.hide()
+		#self.prevButton.show()
+		#self.nextButton.show()
 		self.saveButton.set_sensitive(False)
 		self.editButton.set_sensitive(False)
 		gc.collect()
@@ -433,7 +454,7 @@ class MainWindow:
 		if content.name == "ADR":
 			field = AddressField(content)
 		elif content.name == "BDAY":
-			field = BirthdayField(content, self.tooltips)
+			field = BirthdayField(content)
 		elif content.name == "NOTE":
 			# multiline label
 			scrolledwindow = gtk.ScrolledWindow()
@@ -492,7 +513,6 @@ class MainWindow:
 		iter = self.contactData.append([_("Unnamed"), "", filename])
 
 		self.contactSelection.unselect_all()
-		print iter
 		self.contactSelection.select_iter(iter)
 		self.iter = iter
 		self.vcard = vcard
@@ -561,7 +581,8 @@ class MainWindow:
 				for iter in iters:
 					filename = model[iter][2]
 					try:
-						os.remove(filename)
+						if not self.import_mode:
+							os.remove(filename)
 						self.contactData.remove(iter)
 						self.contactSelection.select_path((0,))
 					except:
@@ -583,9 +604,27 @@ class MainWindow:
 			item2.show()
 		hpaned.get_child1().set_property("visible", self.fullscreen)
 		self.fullscreen = not self.fullscreen
+		self.contactData_change()
 
 	def prefsButton_clicked(self, widget):
-		pass
+		dialog = self.tree.get_widget("prefsDialog")
+
+		self.tree.get_widget("formatCombo").set_active(1)
+		self.tree.get_widget("sortCombo").set_active(1)
+		self.tree.get_widget("addressCombo").set_active(0)
+
+		templateModel = gtk.ListStore(str, str)
+
+		for item in template:
+			templateModel.append([types[item], item])
+
+		self.tree.get_widget("templateList").set_model(templateModel)
+
+		column = gtk.TreeViewColumn(None, gtk.CellRendererText(), text=0)
+		self.tree.get_widget("templateList").append_column(column)
+
+		dialog.run()
+		dialog.hide()
 
 	def copyButton_clicked(self, widget, name):
 		(model, paths) = self.contactSelection.get_selected_rows()
@@ -601,7 +640,6 @@ class MainWindow:
 		for path in paths:
 			vcard = load_contact(model[path][2])
 			if vcard is None: continue
-			print vcard
 			try:
 				if not has_child(vcard, "prodid"):
 					vcard.add("prodid").value = "Arkadas 1.0"
@@ -645,25 +683,35 @@ class MainWindow:
 		self.revertButton.hide()
 		self.load_contacts()
 
-	def addButton_clicked(self, button):
-		self.addMenu.popup(None, None, None, 3, 0)
+	def addCombo_changed(self, combo):
+		title, name, work = combo.get_model()[combo.get_active()]
 
-	def addMenu_itemclick(self, item, nametype, name):
-		if name == "TEL":
+		if name is None:
+			return
+		elif name == "TEL":
 			content = self.vcard.add("tel")
-			content.type_paramlist = [nametype, "VOICE"]
-			if nametype == "HOME": box = self.add_label(self.telbox, content)
-			elif nametype == "WORK": box = self.add_label(self.worktelbox, content)
+			if not work:
+				content.type_paramlist = ["HOME", "VOICE"]
+				box = self.add_label(self.telbox, content)
+			else:
+				content.type_paramlist = ["WORK", "VOICE"]
+				box = self.add_label(self.worktelbox, content)
 		elif name == "EMAIL":
 			content = self.vcard.add("email")
-			content.type_paramlist = [nametype, "INTERNET"]
-			if nametype == "HOME": box = self.add_label(self.emailbox, content)
-			elif nametype == "WORK": box = self.add_label(self.workemailbox, content)
+			if not work:
+				content.type_paramlist = ["HOME", "INTERNET"]
+				box = self.add_label(self.emailbox, content)
+			else:
+				content.type_paramlist = ["WORK", "INTERNET"]
+				box = self.add_label(self.workemailbox, content)
 		elif name == "ADR":
 			content = self.vcard.add("adr")
-			content.type_paramlist = [nametype, "POSTAL", "PARCEL"]
-			if nametype == "HOME": box = self.add_label(self.adrbox, content)
-			elif nametype == "WORK": box = self.add_label(self.workadrbox, content)
+			if not work:
+				content.type_paramlist = ["HOME", "POSTAL", "PARCEL"]
+				box = self.add_label(self.adrbox, content)
+			else:
+				content.type_paramlist = ["WORK", "POSTAL", "PARCEL"]
+				box = self.add_label(self.workadrbox, content)
 		elif name == "URL":
 			content = self.vcard.add("url")
 			box = self.add_label(self.urlbox, content)
@@ -672,6 +720,7 @@ class MainWindow:
 			content.type_paramlist = ["HOME"]
 			box = self.add_label(self.imbox, content)
 		elif name == "BDAY":
+			if has_child(self.vcard, "bday"): return
 			content = self.vcard.add("bday")
 			content.value = "1950-01-01"
 			box = self.add_label(self.bdaybox, content)
@@ -681,31 +730,28 @@ class MainWindow:
 		field.set_editable(True)
 		field.grab_focus()
 
-	def prevButton_clicked(self, button):
-		try:
-			cur_path = self.contactData.get_path(self.iter)[0]
-		except:
-			cur_path = None
+		combo.set_active(0)
 
-		self.contactSelection.unselect_all()
-		if cur_path is not None:
-			if cur_path > 0:
-				self.contactSelection.select_path((cur_path-1,))
-				return
-		self.contactSelection.select_path((len(self.contactData)-1,))
+	def prevButton_clicked(self, button):
+		self.goto_contact(-1)
 
 	def nextButton_clicked(self, button):
-		try:
-			cur_path = self.contactData.get_path(self.iter)[0]
-		except:
-			cur_path = None
+		self.goto_contact(+1)
 
-		self.contactSelection.unselect_all()
+	def goto_contact(self, dir):
+		try: cur_path = self.contactData.get_path(self.iter)[0]
+		except: cur_path = None
+
 		if cur_path is not None:
-			if cur_path < len(self.contactData)-1:
-				self.contactSelection.select_path((cur_path+1,))
-				return
-		self.contactSelection.select_path((0,))
+			length = len(self.contactData)
+			cur_path += dir
+			if cur_path < 0:
+				cur_path = length-1
+			elif cur_path == length:
+				cur_path = 0
+			self.contactSelection.unselect_all()
+			self.contactSelection.select_path((cur_path,))
+			self.contactData_change()
 
 	def undoButton_clicked(self, button):
 		iter = self.iter
@@ -718,13 +764,16 @@ class MainWindow:
 
 	def editButton_clicked(self, button=None, edit=True):
 		self.edit = edit
-		self.addButton.set_property("visible", edit)
+		self.addCombo.set_property("visible", edit)
+		self.prevButton.set_property("visible", not edit)
+		self.nextButton.set_property("visible", not edit)
 		self.undoButton.set_property("visible", edit)
 		self.saveButton.set_property("visible", edit)
 		self.editButton.set_property("visible", not edit)
 		self.imagechangeButton.set_property("visible", edit)
 		self.imageremoveButton.set_property("visible", edit and self.has_photo)
 		self.namechangeButton.set_property("visible", edit)
+		if edit: self.tree.get_widget("countLabel").set_text("")
 
 		if not self.has_photo:
 			if edit:
@@ -744,12 +793,14 @@ class MainWindow:
 							field.set_editable(edit)
 							# remove empty field
 							if field.get_text() == "":
+								self.vcard.remove(field.content)
 								hbox.destroy()
 								continue
 						elif type(field) == AddressField:
 							field.set_editable(edit)
 							# remove empty field
 							if str(field.content.value).strip().replace(",", "") == "":
+								self.vcard.remove(field.content)
 								hbox.destroy()
 								continue
 						elif type(field) == BirthdayField:
@@ -766,13 +817,11 @@ class MainWindow:
 		textview.set_right_margin(2 * edit)
 		textview.set_editable(edit)
 
-		start, end = textbuffer.get_bounds()
-		text = textbuffer.get_text(start, end).strip()
-		#if len(text.replace(" ", "")) > 0:
-		#	self.vcard.note.value = text
-		#else:
-		#	self.vcard.remove(self.vcard.note)
+		self.vcard.note.value = escape(textbuffer.get_text(*textbuffer.get_bounds()).strip())
+		self.notebox.show_all()
 
+		if not len(self.vcard.note.value.strip()) > 0 and not edit:
+			self.notebox.hide_all()
 
 	def saveButton_clicked(self, button=None):
 		if len(unescape(self.vcard.fn.value)) > 0:
@@ -966,16 +1015,26 @@ class MainWindow:
 
 		dialog.hide()
 
-	def contactData_change(self, model, path, iter):
-		text = str(len(self.contactData))
-		if text == 0: text = _("no contacts")
-		elif text == 1: text += _(" contact")
-		else: text += _(" contacts")
+	def contactData_change(self, *args):
+		length = len(self.contactData)
+
+		if self.fullscreen:
+			try: cur_path = self.contactData.get_path(self.iter)[0]
+			except: cur_path = None
+
+			if cur_path is not None:
+				text = _("%i of %i") % (cur_path+1, length)
+		else:
+			text = str(length)
+			if length == 0: text = _("no contacts")
+			elif length == 1: text += _(" contact")
+			else: text += _(" contacts")
+
 		self.tree.get_widget("countLabel").set_text(text)
 
 	def contactList_pressed(self, widget, event):
 		if event.button == 3 and self.contactSelection.count_selected_rows() > 0:
-			self.tree.get_widget("menu2").popup(None, None, None, event.button, event.time)
+			self.tree.get_widget("contactlistMenu").popup(None, None, None, event.button, event.time)
 
 	def contactList_clicked(self, *args):
 		self.contactSelection_change(edit=True)
@@ -986,11 +1045,11 @@ class MainWindow:
 		self.tree.get_widget("contactMenuitem").set_property("visible", selected)
 		self.tree.get_widget("importItem").set_property("visible", self.import_mode)
 
+		self.check_if_new()
+		self.check_if_changed()
+
 		if selected:
 			(model, paths) = self.contactSelection.get_selected_rows()
-
-			self.check_if_new()
-			self.check_if_changed()
 
 			again = False
 			if self.iter is not None:
@@ -1004,7 +1063,6 @@ class MainWindow:
 				self.parse_contact()
 
 			self.editButton_clicked(edit=edit)
-
 		else:
 			self.clear()
 
@@ -1135,10 +1193,7 @@ class CaptionField(gtk.HBox):
 						else: text = types["CELL"]
 
 		self.labelButton.get_child().set_markup("<b>%s</b>" % text)
-		if self.content_name == "NOTE":
-			self.label.set_markup("<span foreground=\"black\"><b>%s</b></span>" % text)
-		else:
-			self.label.set_markup("<span foreground=\"dim grey\"><b>%s</b></span>" % text)
+		self.label.set_markup("<span foreground=\"gray65\"><b>%s</b></span>" % text)
 
 class LabelField(gtk.HBox):
 	def __init__(self, content, use_content=True):
@@ -1338,13 +1393,13 @@ class AddressField(gtk.HBox):
 		self.street.grab_focus()
 
 class BirthdayField(gtk.HBox):
-	def __init__(self, content, tooltips):
+	def __init__(self, content):
 		gtk.HBox.__init__(self)
 
 		self.set_no_show_all(True)
 
 		self.content = content
-		self.tooltips = tooltips
+		self.tooltips = gtk.Tooltips()
 
 		self.build_interface()
 
@@ -1377,6 +1432,8 @@ class BirthdayField(gtk.HBox):
 		self.year.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.year, _('Year'))
 		self.datebox.pack_start(self.year, False)
+
+		self.datebox.show_all()
 
 		year, month, day = bday_from_value(self.content.value)
 
@@ -1425,13 +1482,9 @@ def load_contact(filename):
 			vcard.n.value = vobject.vcard.Name(**dict(zip(vobject.vcard.NAME_ORDER, n)))
 			vcard.n.params = {}
 			if not has_child(vcard, "fn"):
-				fn = ""
-				for i in (3,1,2,0,4):
-					fn += n[i].strip() + " "
-				vcard.add("fn")
-				vcard.fn.value = fn.replace("  "," ").strip()
-
-			vcard = convert_contact(vcard)
+				vcard.add("fn").value = format_fn("%p %g %a %f %s", **vcard.n.value.__dict__)
+			if CONVERT_ON_LOAD:
+				vcard = convert_contact(vcard)
 	except:
 		raise
 		return None
@@ -1450,7 +1503,6 @@ def save_contact(vcard, filename):
 
 def convert_contact(vcard):
 	new_vcard = vobject.vCard()
-
 	new_vcard.add("n").value = vcard.n.value
 
 	for key in vcard.contents:
@@ -1484,6 +1536,16 @@ def entities(s):
 	s = s.replace("\"", "&quot;")
 	return s
 
+def format_fn(format, **args):
+	fullname = format
+	fullname = fullname.replace("%f", args.get("family", ""))
+	fullname = fullname.replace("%g", args.get("given", ""))
+	fullname = fullname.replace("%a", args.get("additional", ""))
+	fullname = fullname.replace("%p", args.get("prefix", ""))
+	fullname = fullname.replace("%s", args.get("suffix", ""))
+	fullname = fullname.replace("  ", " ").strip()
+	return fullname
+
 def bday_from_value(value):
 	try:
 		(y, m, d) = value.split("-", 2)
@@ -1497,9 +1559,13 @@ def bday_from_value(value):
 		pass
 	return (None, None, None)
 
-def has_child(vcard, childName, childNumber = 0):
+def has_child(vcard, name, num = 0):
 	try:
-		return len(str(vcard.getChildValue(childName, "", childNumber))) > 0
+		value = str(vcard.getChildValue(name, "", num))
+		if len(value) == 0:
+			vcard.remove(name)
+			return False
+		return True
 	except:
 		return False
 
