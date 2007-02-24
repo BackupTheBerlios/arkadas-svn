@@ -483,6 +483,7 @@ class MainWindow:
 	# event funtions
 	#---------------
 	def delete_event(self, widget, event=None):
+		self.check_if_new()
 		self.check_if_changed()
 		#sys.exit()
 		gtk.main_quit()
@@ -490,10 +491,11 @@ class MainWindow:
 
 	def newButton_clicked(self, widget):
 		self.check_if_new()
-		self.check_if_changed()
 
 		if self.import_mode:
 			self.revertButton_clicked()
+		else:
+			self.check_if_changed()
 
 		vcard = vobject.vCard()
 		vcard.add("prodid").value = "Arkadas 1.0"
