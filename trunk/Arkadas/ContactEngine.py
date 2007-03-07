@@ -262,7 +262,7 @@ class Name(object):
 		return [getattr(self, val) for val in NAME_ORDER]
 
 class Content(object):
-	def __init__(self, id, name, type=None, value=None):
+	def __init__(self, id, name, type="", value=""):
 		self.id = id
 		self.name = name
 		self.type = type

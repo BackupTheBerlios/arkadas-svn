@@ -58,10 +58,12 @@ class MainWindow:
 
 		self.tooltips = gtk.Tooltips()
 		self.clipboard = gtk.Clipboard()
+		self.load_fallbackprefs()
 		self.load_prefs()
 		self.load_widgets()
 		self.build_list()
 		self.build_table()
+		self.build_prefs()
 
 		self.window.show_all()
 
@@ -81,7 +83,7 @@ class MainWindow:
 
 		gobject.idle_add(load_db)
 
-	def load_prefs(self):
+	def load_fallbackprefs(self):
 		# set config dir
 		path = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
 		self.config_dir = os.path.join(path, "arkadas")
@@ -93,6 +95,56 @@ class MainWindow:
 		# set photo dir
 		self.photo_dir = os.path.join(self.data_dir, "images")
 		if not os.path.exists(self.photo_dir): os.mkdir(self.photo_dir)
+
+		self.display_format = display_formats[0]
+		self.address_format = address_formats[0]
+		self.sort_format = sort_formats[0]
+
+		self.fullscreen_editing = False
+		self.photo_manip = "center"
+
+		self.display_order = ["tel", "email", "url", "im", "bday", "adr"]
+		self.template = ["tel", "email", "url"]
+
+	def load_prefs(self):
+		conf = ConfigParser.ConfigParser()
+		conf.read(os.path.join(self.config_dir, "arkadasrc"))
+
+		if conf.has_option("format", "display"):
+			self.display_format = conf.get("format", "display")
+		if conf.has_option("format", "sort"):
+			self.sort_format = conf.get("format", "sort")
+		if conf.has_option("format", "address"):
+			self.address_format = conf.get("format", "address")
+
+		if conf.has_option("display", "fs_editing"):
+			self.fullscreen_editing = conf.getboolean("display", "fs_editing")
+		if conf.has_option("display", "photo_manip"):
+			self.photo_manip = conf.get("display", "photo_manip")
+
+		if conf.has_option("display", "template"):
+			self.template = conf.get("display", "template").split(",")
+		if conf.has_option("display", "order"):
+			self.display_order = conf.get("display", "order").split(",")
+
+
+	def save_prefs(self):
+		conf = ConfigParser.ConfigParser()
+
+		#conf.add_section("general")
+
+		conf.add_section("format")
+		conf.set("format", "display", self.display_format)
+		conf.set("format", "sort", self.sort_format)
+		conf.set("format", "address", self.address_format)
+
+		conf.add_section("display")
+		conf.set("display", "fs_editing", self.fullscreen_editing)
+		conf.set("display", "photo_manip", self.photo_manip)
+		conf.set("display", "template", ",".join(self.template))
+		conf.set("display", "order", ",".join(self.display_order))
+
+		conf.write(file(os.path.join(self.config_dir, "arkadasrc"), "w"))
 
 	def load_widgets(self):
 		self.window = self.tree.get_widget("mainWindow")
@@ -179,11 +231,11 @@ class MainWindow:
 		model = gtk.ListStore(str, str)
 
 		for name in ("tel", "email", "adr", "url", "im", "bday"):
-				model.append([types[name], name])
+			model.append([types[name], name])
 		self.addCombo.set_model(model)
 		cell = gtk.CellRendererText()
 		self.addCombo.pack_start(cell)
-		self.addCombo.add_attribute(cell, 'text', 0)
+		self.addCombo.add_attribute(cell, "text", 0)
 		self.addCombo.prepend_text(_("Add Field"))
 		self.addCombo.set_active(0)
 
@@ -196,6 +248,7 @@ class MainWindow:
 		item = gtk.ImageMenuItem(gtk.STOCK_REMOVE)
 		item.connect("activate", self.imageremoveButton_clicked)
 		menu.append(item)
+		menu.attach_to_widget(self.photoBox, None)
 		menu.show_all()
 
 		def photoBox_callbacks(widget, event, type):
@@ -223,7 +276,7 @@ class MainWindow:
 		self.notebox = gtk.VBox(False, 6)
 
 		# add fieldholder by order
-		for type in order:
+		for type in self.display_order:
 			box = getattr(self, type+"box")
 			self.table.pack_start(box, False)
 
@@ -253,6 +306,51 @@ class MainWindow:
 
 		self.notebox.hide_all()
 
+	def build_prefs(self):
+		dialog = self.tree.get_widget("prefsDialog")
+
+		notebook = self.tree.get_widget("prefNotebook")
+
+		notebook.set_tab_label_text(self.tree.get_widget("prefBox1"), _("General"))
+		notebook.set_tab_label_text(self.tree.get_widget("prefBox2"), _("Template"))
+		notebook.set_tab_label_text(self.tree.get_widget("prefBox3"), _("Display Order"))
+
+		self.tree.get_widget("formatCombo").set_active(display_formats.index(self.display_format))
+		self.tree.get_widget("sortCombo").set_active(sort_formats.index(self.sort_format))
+		self.tree.get_widget("addressCombo").set_active(address_formats.index(self.address_format))
+
+		self.tree.get_widget("editingCheck").set_active(self.fullscreen_editing)
+
+		if self.photo_manip in ("crop", "center"):
+			self.tree.get_widget(self.photo_manip+"Radio").set_active(True)
+		else:
+			self.tree.get_widget("noneRadio").set_active(True)
+
+		model = gtk.ListStore(str, str)
+		for item in self.template:
+			model.append([types[item], item])
+
+		self.tree.get_widget("templateList").set_model(model)
+		column = gtk.TreeViewColumn(None, gtk.CellRendererText(), text=0)
+		self.tree.get_widget("templateList").append_column(column)
+
+		self.addfieldMenu = gtk.Menu()
+		for name in ("tel", "email", "adr", "url", "im", "bday"):
+			item = gtk.MenuItem(types[name])
+			item.connect("activate", self.addfieldMenu_clicked, name)
+			self.addfieldMenu.append(item)
+		self.addfieldMenu.attach_to_widget(self.tree.get_widget("addfieldButton"), None)
+		self.addfieldMenu.show_all()
+
+		model = gtk.ListStore(str, str)
+		for item in self.display_order:
+			model.append([types[item], item])
+
+		self.tree.get_widget("orderList").set_model(model)
+
+		column = gtk.TreeViewColumn(None, gtk.CellRendererText(), text=0)
+		self.tree.get_widget("orderList").append_column(column)
+
 	#---------------
 	# main funtions
 	#---------------
@@ -278,8 +376,8 @@ class MainWindow:
 		return False
 
 	def add_to_list(self, contact):
-		fullname = format_fn(DISPLAY_FORMAT, **contact.names.__dict__)
-		sort_string = format_fn("%f %g %a", **contact.names.__dict__).replace("  "," ").strip()
+		fullname = format_fn(self.display_format, **contact.names.__dict__)
+		sort_string = format_fn(self.sort_format, **contact.names.__dict__)
 		return self.contactData.append([contact.id, fullname, sort_string])
 
 	def check_if_new(self):
@@ -296,7 +394,7 @@ class MainWindow:
 	def check_if_changed(self):
 		if self.edit and self.contact is not None:
 			text = "<big><b>%s</b></big>" % _("Save the changes to contact before closing?")
-			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % format_fn(DISPLAY_FORMAT, **self.contact.names.__dict__)
+			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % format_fn(self.display_format, **self.contact.names.__dict__)
 
 			msgbox = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE)
 			msgbox.set_title("Arkadas")
@@ -316,7 +414,7 @@ class MainWindow:
 		self.editButton.set_sensitive(True)
 
 		# FIELD - fullname & nickname
-		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(DISPLAY_FORMAT, **self.contact.names.__dict__)
+		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(self.display_format, **self.contact.names.__dict__)
 		if self.contact.hasValue("nickname"):
 			text += " (<big>%s</big>)" % self.contact.nickname
 		self.tree.get_widget("fullnameLabel").set_markup(text)
@@ -331,6 +429,9 @@ class MainWindow:
 			contentlist = getattr(self.contact, name+"_list")
 			for content in contentlist:
 				self.add_label(name, content)
+
+		for field in self.adrbox.vbox:
+			field.label.format = self.address_format
 
 		if self.contact.hasValue("bday"):
 			self.add_label("bday", self.contact.bday)
@@ -348,7 +449,16 @@ class MainWindow:
 		# FIELD - photo
 		if self.contact.hasValue("photo"):
 			try:
-				pixbuf = get_pad_pixbuf(get_pixbuf_of_size_from_file(self.contact.photo, 64), 64, 64)
+				pixbuf = gtk.gdk.pixbuf_new_from_file(self.contact.photo)
+				if self.photo_manip == "crop":
+					pixbuf = get_crop_pixbuf(pixbuf)
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
+				elif self.photo_manip == "center":
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
+					pixbuf = get_pad_pixbuf(pixbuf, 64, 64)
+				else:
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
+
 				self.has_photo = True
 			except:
 				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
@@ -386,6 +496,7 @@ class MainWindow:
 
 		field = Field(name, content)
 		field.removeButton.connect("clicked", removeButton_clicked, field, name, content)
+
 		getattr(self, name+"box").add_field(field)
 
 		return field
@@ -397,6 +508,7 @@ class MainWindow:
 		self.check_if_new()
 		self.check_if_changed()
 		self.clear()
+		self.save_prefs()
 		#sys.exit()
 		gtk.main_quit()
 		return False
@@ -404,16 +516,20 @@ class MainWindow:
 	def newButton_clicked(self, widget):
 		self.check_if_new()
 		self.check_if_changed()
+		self.contactSelection.unselect_all()
+		self.clear()
 
 		self.contact = self.engine.addContact()
 
-		for name in template:
-			self.contact.add(name)
+		for name in self.template:
+			if name=="bday":
+				if self.contact.hasValue("bday"): return
+				self.contact.bday = "1950-01-01"
+			else:
+				self.contact.add(name).value = ""
 
 		iter = self.contactData.append([self.contact.id, _("Unnamed"), ""])
 
-		self.contactSelection.unselect_all()
-		self.contactSelection.select_iter(iter)
 		self.parse_contact()
 		self.editButton_clicked()
 		self.is_new = True
@@ -543,7 +659,7 @@ class MainWindow:
 			for iter in iters:
 				self.contactData.remove(iter)
 
-	def fullscreenButton_clicked(self, widget):
+	def fullscreenButton_clicked(self, widget=None):
 		hpaned = self.tree.get_widget("hpaned")
 		button = self.tree.get_widget("fullscreenButton")
 		item = self.tree.get_widget("fullscreenItem1")
@@ -563,27 +679,77 @@ class MainWindow:
 	def prefsButton_clicked(self, widget):
 		dialog = self.tree.get_widget("prefsDialog")
 
-		notebook = self.tree.get_widget("prefNotebook")
-
-		notebook.set_tab_label_text(self.tree.get_widget("prefBox1"), _("General"))
-		notebook.set_tab_label_text(self.tree.get_widget("prefBox2"), _("Template"))
-
-		self.tree.get_widget("formatCombo").set_active(1)
-		self.tree.get_widget("sortCombo").set_active(1)
-		self.tree.get_widget("addressCombo").set_active(0)
-
-		templateModel = gtk.ListStore(str, str)
-
-		for item in template:
-			templateModel.append([types[item], item])
-
-		self.tree.get_widget("templateList").set_model(templateModel)
-
-		column = gtk.TreeViewColumn(None, gtk.CellRendererText(), text=0)
-		self.tree.get_widget("templateList").append_column(column)
-
+		self.tree.get_widget("prefNotebook").set_current_page(0)
 		dialog.run()
+
+		self.display_format = display_formats[self.tree.get_widget("formatCombo").get_active()]
+		self.sort_format = sort_formats[self.tree.get_widget("sortCombo").get_active()]
+
+		for row in self.contactData:
+			contact = self.engine.getContact(row[0])
+			fullname = format_fn(self.display_format, **contact.names.__dict__)
+			sort_string = format_fn(self.sort_format, **contact.names.__dict__)
+			self.contactData[row.iter] = [contact.id, fullname, sort_string]
+
+		self.address_format = address_formats[self.tree.get_widget("addressCombo").get_active()]
+
+		for field in self.adrbox.vbox:
+			field.label.format = self.address_format
+			field.label.set_editable(self.edit)
+
+		self.fullscreen_editing = self.tree.get_widget("editingCheck").get_active()
+
+		for opt in ("none", "crop", "center"):
+			if self.tree.get_widget(opt+"Radio").get_active():
+				self.photo_manip = opt
+				break
+
+		model = self.tree.get_widget("templateList").get_model()
+		self.template = list(row[1] for row in model)
+
+		model = self.tree.get_widget("orderList").get_model()
+		self.display_order = list(row[1] for row in model)
+
+		for name in ("tel", "email", "url", "im", "adr", "bday", "note"):
+			self.table.remove(getattr(self, name+"box"))
+
+		for type in self.display_order:
+			box = getattr(self, type+"box")
+			self.table.pack_start(box, False)
+
+		self.table.pack_start(self.notebox)
+
+		self.save_prefs()
 		dialog.hide()
+
+	def moveupButton_clicked(self, treeview):
+		(model, iter) = treeview.get_selection().get_selected()
+
+		if iter:
+			row = model.get_path(iter)[0]
+			if row > 0:
+				model.move_before(iter, model.get_iter(row-1))
+
+	def movedownButton_clicked(self, treeview):
+		(model, iter) = treeview.get_selection().get_selected()
+
+		if iter:
+			row = model.get_path(iter)[0]
+			if row < len(model)-1:
+				model.move_after(iter, model.get_iter(row+1))
+
+	def addfieldMenu_clicked(self, item, name):
+		model = self.tree.get_widget("templateList").get_model()
+		model.append([types[name], name])
+
+	def addfieldButton_clicked(self, treeview):
+		self.addfieldMenu.popup(None, None, None, 1, 0)
+
+	def removefieldButton_clicked(self, treeview):
+		(model, iter) = treeview.get_selection().get_selected()
+
+		if iter:
+			model.remove(iter)
 
 	def aboutButton_clicked(self, widget):
 		aboutdialog = gtk.AboutDialog()
@@ -744,6 +910,11 @@ class MainWindow:
 
 	def editButton_clicked(self, button=None, edit=True):
 		self.edit = edit
+
+		if self.fullscreen_editing:
+			self.fullscreen = not edit
+			self.fullscreenButton_clicked()
+
 		self.addCombo.set_property("visible", edit)
 		self.prevButton.set_property("visible", not edit)
 		self.nextButton.set_property("visible", not edit)
@@ -793,8 +964,8 @@ class MainWindow:
 
 		if self.contact.save():
 			path = self.contactSelection.get_selected_rows()[1][0][0]
-			fullname = format_fn(DISPLAY_FORMAT, **self.contact.names.__dict__)
-			sort_string = format_fn("%f %g %a", **self.contact.names.__dict__).replace("  "," ").strip()
+			fullname = format_fn(self.display_format, **self.contact.names.__dict__)
+			sort_string = format_fn(self.sort_format, **self.contact.names.__dict__)
 			self.contactData[path][1] = fullname
 			self.contactData[path][2] = sort_string
 		else:
@@ -838,7 +1009,15 @@ class MainWindow:
 		if dialog.run() == gtk.RESPONSE_OK:
 			filename = dialog.get_preview_filename()
 			try:
-				pixbuf = get_pad_pixbuf(get_pixbuf_of_size_from_file(filename, 64), 64, 64)
+				pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
+				if self.photo_manip == "crop":
+					pixbuf = get_crop_pixbuf(pixbuf)
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
+				elif self.photo_manip == "center":
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
+					pixbuf = get_pad_pixbuf(pixbuf, 64, 64)
+				else:
+					pixbuf = get_pixbuf_of_size(pixbuf, 64)
 				self.has_photo = True
 			except:
 				pixbuf = get_pixbuf_of_size_from_file(find_path("no-photo.png"), 64)
@@ -894,7 +1073,7 @@ class MainWindow:
 			self.contact.title = self.nameEntry7.get_text().replace("  "," ").strip()
 			self.contact.org = self.nameEntry8.get_text().replace("  "," ").strip()
 
-			text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(DISPLAY_FORMAT, **self.contact.names.__dict__)
+			text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(self.display_format, **self.contact.names.__dict__)
 			if self.contact.hasValue("nickname"):
 				text += " (<big>%s</big>)" % self.contact.nickname
 			self.tree.get_widget("fullnameLabel").set_markup(text)
@@ -955,7 +1134,6 @@ class MainWindow:
 		(model, paths) = self.contactSelection.get_selected_rows()
 		if paths:
 			data = ",".join(str(model[path][0]) for path in paths)
-			print data
 			selection.set_text(data)
 
 	def contactList_popup(self, widget, time=0):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Arkadas, a lightweight GTK+ Contact-Manager based on vCards.
+"""Arkadas, a lightweight GTK+ Contact-Manager.
 """
 
 #	This file is part of Arkadas.

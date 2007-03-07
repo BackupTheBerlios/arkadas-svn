@@ -191,7 +191,7 @@ class AddressField(gtk.HBox):
 		gtk.HBox.__init__(self)
 
 		self.content = content
-
+		self.format = address_formats[0]
 		self.build_interface()
 
 		self.set_editable(False)
@@ -235,7 +235,7 @@ class AddressField(gtk.HBox):
 		for val in ContactEngine.ADDRESS_ORDER:
 			setattr(self.content, val, getattr(self, val).get_text().strip())
 
-		text = format_adr(ADDRESS_FORMAT,**self.content.__dict__)
+		text = format_adr(self.format,**self.content.__dict__)
 		self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
 
 	def grab_focus(self):
