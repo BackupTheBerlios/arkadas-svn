@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Address Book
 Name[de]=Adressbuch
-Comment=A lightweight GTK+ Contact-Manager based on vCards
-Comment[de]=Ein ressourcensparender GTK+ Kontakt-Verwalter, basierend auf vCards.
+Comment=A lightweight GTK+ Contact-Manager
+Comment[de]=Ein ressourcensparender GTK+ Kontakt-Verwalter
 Exec=arkadas
 Terminal=false
 Type=Application

@@ -20,8 +20,8 @@
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 if __name__ == "__main__":
-	import arkadas
-	app = arkadas.MainWindow()
+	import Arkadas.MainWindow
+	app = Arkadas.MainWindow.MainWindow()
 	try:
 		app.main()
 	except KeyboardInterrupt:
