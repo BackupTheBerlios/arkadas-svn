@@ -8,241 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2007-02-09 23:50+0100\n"
+"POT-Creation-Date: 2007-03-07 22:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
-
-#: arkadas.py:41
-msgid "Home"
-msgstr ""
-
-#: arkadas.py:41
-msgid "Work"
-msgstr ""
-
-#: arkadas.py:42
-msgid "Birthday"
-msgstr ""
-
-#: arkadas.py:42
-msgid "Website"
-msgstr ""
-
-#: arkadas.py:43
-msgid "Address"
-msgstr ""
-
-#: arkadas.py:44
-msgid "Username"
-msgstr ""
-
-#: arkadas.py:45
-msgid "Notes:"
-msgstr ""
-
-#: arkadas.py:45
-msgid "Phone"
-msgstr ""
-
-#: arkadas.py:47
-msgid "Postbox"
-msgstr ""
-
-#: arkadas.py:47
-msgid "Extended"
-msgstr ""
-
-#: arkadas.py:48
-msgid "Street"
-msgstr ""
-
-#: arkadas.py:48
-msgid "City"
-msgstr ""
-
-#: arkadas.py:49
-msgid "State"
-msgstr ""
-
-#: arkadas.py:49
-msgid "ZIP"
-msgstr ""
-
-#: arkadas.py:49
-msgid "Country"
-msgstr ""
-
-#: arkadas.py:51
-msgid "Landline"
-msgstr ""
-
-#: arkadas.py:51
-msgid "ISDN"
-msgstr ""
-
-#: arkadas.py:52
-msgid "Mobile"
-msgstr ""
-
-#: arkadas.py:52
-msgid "Fax"
-msgstr ""
-
-#: arkadas.py:53
-msgid "Car"
-msgstr ""
-
-#: arkadas.py:53
-msgid "Video"
-msgstr ""
-
-#: arkadas.py:54
-msgid "Pager"
-msgstr ""
-
-#: arkadas.py:54
-msgid "Modem"
-msgstr ""
-
-#: arkadas.py:55
-msgid "BBS"
-msgstr ""
-
-#: arkadas.py:55
-msgid "PCS"
-msgstr ""
-
-#: arkadas.py:260
-msgid "Unable to load the contact."
-msgstr ""
-
-#: arkadas.py:288
-msgid "Save the changes to contact before closing?"
-msgstr ""
-
-#: arkadas.py:289
-#, python-format
-msgid ""
-"If you don't save, changes you made to <b>%s</b> will be permanently lost."
-msgstr ""
-
-#: arkadas.py:492
-msgid "Unnamed"
-msgstr ""
-
-#: arkadas.py:506
-msgid "Open Contacts"
-msgstr ""
-
-#: arkadas.py:509
-msgid "Import to contactlist"
-msgstr ""
-
-#: arkadas.py:511
-msgid "vCard Files"
-msgstr ""
-
-#: arkadas.py:516 arkadas.py:813
-msgid "All Files"
-msgstr ""
-
-#: arkadas.py:540
-msgid "Remove Contacts"
-msgstr ""
-
-#: arkadas.py:541
-msgid ""
-"You are about to remove the selected contacts from your contactlist.\n"
-"Do you want to continue?"
-msgstr ""
-
-#: arkadas.py:544
-msgid "Remove Contact"
-msgstr ""
-
-#: arkadas.py:545
-#, python-format
-msgid ""
-"You are about to remove <b>%s</b> from your contactlist.\n"
-"Do you want to continue?"
-msgstr ""
-
-#: arkadas.py:551
-msgid "Delete Contacts"
-msgstr ""
-
-#: arkadas.py:553
-msgid "Delete Contact"
-msgstr ""
-
-#: arkadas.py:597
-#, python-format
-msgid "Successfully copied <b>%s</b> to clipboard."
-msgstr ""
-
-#: arkadas.py:616
-msgid "Successfully imported the selected contacts."
-msgstr ""
-
-#: arkadas.py:630
-msgid "A lightweight GTK+ Contact-Manager based on vCards."
-msgstr ""
-
-#: arkadas.py:789
-msgid "Unable to save the contact."
-msgstr ""
-
-#: arkadas.py:791
-msgid "Can't save, please enter a name."
-msgstr ""
-
-#: arkadas.py:806
-msgid "Open Image"
-msgstr ""
-
-#: arkadas.py:809
-msgid "Images"
-msgstr ""
-
-#: arkadas.py:824
-msgid "Scaledown to 200 Pixel"
-msgstr ""
-
-#: arkadas.py:825
-msgid "Crop image"
-msgstr ""
-
-#: arkadas.py:971
-msgid "no contacts"
-msgstr ""
-
-#: arkadas.py:972
-msgid " contact"
-msgstr ""
-
-#: arkadas.py:973
-msgid " contacts"
-msgstr ""
-
-#: arkadas.py:1362
-msgid "Day"
-msgstr ""
-
-#: arkadas.py:1368
-msgid "Month"
-msgstr ""
-
-#: arkadas.py:1374
-msgid "Year"
-msgstr ""
-
-#: arkadas.py:1590
-msgid "Unable to launch a suitable browser."
-msgstr ""
 
 #: arkadas.glade:6
 msgid "Address Book"
@@ -252,91 +24,143 @@ msgstr ""
 msgid "Contact_s"
 msgstr ""
 
-#: arkadas.glade:64
-msgid "_Contact"
-msgstr ""
-
-#: arkadas.glade:95
+#: arkadas.glade:37
 msgid "_Import"
 msgstr ""
 
-#: arkadas.glade:103
+#: arkadas.glade:77
+msgid "_Contact"
+msgstr ""
+
+#: arkadas.glade:108 arkadas.glade:648
+msgid "_Remove From Group"
+msgstr ""
+
+#: arkadas.glade:121 arkadas.glade:661
 msgid "E_xport"
 msgstr ""
 
-#: arkadas.glade:129
+#: arkadas.glade:133
 msgid "_View"
 msgstr ""
 
-#: arkadas.glade:183
+#: arkadas.glade:187
 msgid "_Help"
 msgstr ""
 
-#: arkadas.glade:212
+#: arkadas.glade:216
 msgid "Create a new contact"
 msgstr ""
 
-#: arkadas.glade:223
-msgid "Open and import contacts"
-msgstr ""
-
-#: arkadas.glade:234
+#: arkadas.glade:227
 msgid "Delete the selected contacts"
 msgstr ""
 
-#: arkadas.glade:254
+#: arkadas.glade:247
 msgid "Switch between fullscreen view"
 msgstr ""
 
-#: arkadas.glade:274
+#: arkadas.glade:267
 msgid "Configure the application"
 msgstr ""
 
-#: arkadas.glade:362
-msgid "Change photo"
+#: arkadas.glade:315
+msgid "Add new group"
 msgstr ""
 
-#: arkadas.glade:379
-msgid "Remove photo"
+#: arkadas.glade:331
+msgid "Remove selected group"
 msgstr ""
 
-#: arkadas.glade:460
+#: arkadas.glade:469
 msgid "Change name and title"
 msgstr ""
 
-#: arkadas.glade:509
-msgid "Add Field"
+#: arkadas.glade:612
+msgid "_New Contact"
 msgstr ""
 
-#: arkadas.glade:636
+#: arkadas.glade:668
 msgid "Edit Contact Name"
 msgstr ""
 
-#: arkadas.glade:664
-msgid "Honoric _Prefixes:"
+#: arkadas.glade:694
+msgid "_Job Title:"
 msgstr ""
 
-#: arkadas.glade:672
-msgid "_Given name:"
-msgstr ""
-
-#: arkadas.glade:684
-msgid "_Additional names:"
-msgstr ""
-
-#: arkadas.glade:696
-msgid "_Family names:"
-msgstr ""
-
-#: arkadas.glade:708
-msgid "Honoric _Suffixes:"
+#: arkadas.glade:707
+msgid "_Nickname:"
 msgstr ""
 
 #: arkadas.glade:720
-msgid "For_matted name:"
+msgid "_Organization:"
 msgstr ""
 
-#: arkadas.glade:838
+#: arkadas.glade:810
+msgid "_Suffix:"
+msgstr ""
+
+#: arkadas.glade:835
+msgid "_Family names:"
+msgstr ""
+
+#: arkadas.glade:860
+msgid "_Additional names:"
+msgstr ""
+
+#: arkadas.glade:885
+msgid "_Given name:"
+msgstr ""
+
+#: arkadas.glade:928
+msgid "_Title:"
+msgstr ""
+
+#: arkadas.glade:975
+msgid "Preferences"
+msgstr ""
+
+#: arkadas.glade:1011
+msgid "None"
+msgstr ""
+
+#: arkadas.glade:1018
+msgid "Crop"
+msgstr ""
+
+#: arkadas.glade:1029
+msgid "Center"
+msgstr ""
+
+#: arkadas.glade:1048
+msgid "Edit in fullscreen"
+msgstr ""
+
+#: arkadas.glade:1062
+msgid "<b>Photo</b>"
+msgstr ""
+
+#: arkadas.glade:1086
+msgid ""
+"American\n"
+"German, French"
+msgstr ""
+
+#: arkadas.glade:1100
+msgid "Address Format"
+msgstr ""
+
+#: arkadas.glade:1114
+msgid ""
+"Last Name\n"
+"First Name"
+msgstr ""
+
+#: arkadas.glade:1128
+msgid "Sort By"
+msgstr ""
+
+#: arkadas.glade:1142
 msgid ""
 "Simple Name\n"
 "Full Name\n"
@@ -344,14 +168,253 @@ msgid ""
 "Reverse Name"
 msgstr ""
 
-#: arkadas.glade:866
-msgid "_Nickname:"
+#: arkadas.glade:1158
+msgid "Display Format"
 msgstr ""
 
-#: arkadas.glade:878
-msgid "_Title/Role:"
+#: arkadas.glade:1173
+msgid "<b>Display</b>"
 msgstr ""
 
-#: arkadas.glade:890
-msgid "_Organization:"
+#: Arkadas/Commons.py:34
+msgid "Home"
+msgstr ""
+
+#: Arkadas/Commons.py:34
+msgid "Work"
+msgstr ""
+
+#: Arkadas/Commons.py:35
+msgid "Birthday"
+msgstr ""
+
+#: Arkadas/Commons.py:35
+msgid "Website"
+msgstr ""
+
+#: Arkadas/Commons.py:36
+msgid "Address"
+msgstr ""
+
+#: Arkadas/Commons.py:38
+msgid "Notes:"
+msgstr ""
+
+#: Arkadas/Commons.py:38
+msgid "Phone"
+msgstr ""
+
+#: Arkadas/Commons.py:40
+msgid "Postbox"
+msgstr ""
+
+#: Arkadas/Commons.py:40
+msgid "Extended"
+msgstr ""
+
+#: Arkadas/Commons.py:41
+msgid "Street"
+msgstr ""
+
+#: Arkadas/Commons.py:41
+msgid "City"
+msgstr ""
+
+#: Arkadas/Commons.py:42
+msgid "State"
+msgstr ""
+
+#: Arkadas/Commons.py:42
+msgid "ZIP"
+msgstr ""
+
+#: Arkadas/Commons.py:42
+msgid "Country"
+msgstr ""
+
+#: Arkadas/Commons.py:44
+msgid "Mobile"
+msgstr ""
+
+#: Arkadas/Commons.py:44
+msgid "Fax"
+msgstr ""
+
+#: Arkadas/Commons.py:335
+msgid "Unable to launch a suitable browser."
+msgstr ""
+
+#: Arkadas/MainWindow.py:230
+msgid "Add Field"
+msgstr ""
+
+#: Arkadas/MainWindow.py:305
+msgid "General"
+msgstr ""
+
+#: Arkadas/MainWindow.py:306
+msgid "Template"
+msgstr ""
+
+#: Arkadas/MainWindow.py:307
+msgid "Display Order"
+msgstr ""
+
+#: Arkadas/MainWindow.py:352
+msgid "All"
+msgstr ""
+
+#: Arkadas/MainWindow.py:387
+msgid "Save the changes to contact before closing?"
+msgstr ""
+
+#: Arkadas/MainWindow.py:388
+#, python-format
+msgid ""
+"If you don't save, changes you made to <b>%s</b> will be permanently lost."
+msgstr ""
+
+#: Arkadas/MainWindow.py:522
+msgid "Unnamed"
+msgstr ""
+
+#: Arkadas/MainWindow.py:531
+msgid "Import Contacts"
+msgstr ""
+
+#: Arkadas/MainWindow.py:536 Arkadas/MainWindow.py:569
+msgid "vCard Files"
+msgstr ""
+
+#: Arkadas/MainWindow.py:541 Arkadas/MainWindow.py:574
+#: Arkadas/MainWindow.py:985
+msgid "All Files"
+msgstr ""
+
+#: Arkadas/MainWindow.py:552
+msgid "There was an error while importing contacts."
+msgstr ""
+
+#: Arkadas/MainWindow.py:556
+msgid "Successfully imported contacts."
+msgstr ""
+
+#: Arkadas/MainWindow.py:565
+msgid "Export Contacts"
+msgstr ""
+
+#: Arkadas/MainWindow.py:578
+msgid "Append to file"
+msgstr ""
+
+#: Arkadas/MainWindow.py:590
+msgid "There was an error while exporting contacts."
+msgstr ""
+
+#: Arkadas/MainWindow.py:594
+msgid "Successfully exported contacts."
+msgstr ""
+
+#: Arkadas/MainWindow.py:605
+msgid "Remove Contacts"
+msgstr ""
+
+#: Arkadas/MainWindow.py:606
+msgid ""
+"You are about to remove the selected contacts from your contactlist.\n"
+"Do you want to continue?"
+msgstr ""
+
+#: Arkadas/MainWindow.py:609
+msgid "Remove Contact"
+msgstr ""
+
+#: Arkadas/MainWindow.py:610
+#, python-format
+msgid ""
+"You are about to remove <b>%s</b> from your contactlist.\n"
+"Do you want to continue?"
+msgstr ""
+
+#: Arkadas/MainWindow.py:616
+msgid "Delete Contacts"
+msgstr ""
+
+#: Arkadas/MainWindow.py:618
+msgid "Delete Contact"
+msgstr ""
+
+#: Arkadas/MainWindow.py:754
+msgid "A lightweight GTK+ Contact-Manager."
+msgstr ""
+
+#: Arkadas/MainWindow.py:778
+msgid "Edit Group"
+msgstr ""
+
+#: Arkadas/MainWindow.py:781
+msgid "Create Group"
+msgstr ""
+
+#: Arkadas/MainWindow.py:790
+msgid "Group name"
+msgstr ""
+
+#: Arkadas/MainWindow.py:798
+msgid "Description (optional)"
+msgstr ""
+
+#: Arkadas/MainWindow.py:831
+msgid "Remove Group"
+msgstr ""
+
+#: Arkadas/MainWindow.py:832
+#, python-format
+msgid ""
+"You are about to remove the group <b>%s</b>.\n"
+"Do you want to continue?"
+msgstr ""
+
+#: Arkadas/MainWindow.py:837
+msgid "Delete Group"
+msgstr ""
+
+#: Arkadas/MainWindow.py:963
+msgid "Unable to save the contact."
+msgstr ""
+
+#: Arkadas/MainWindow.py:978
+msgid "Open Image"
+msgstr ""
+
+#: Arkadas/MainWindow.py:981
+msgid "Images"
+msgstr ""
+
+#: Arkadas/MainWindow.py:1115
+msgid " of "
+msgstr ""
+
+#: Arkadas/MainWindow.py:1118
+msgid "no contacts"
+msgstr ""
+
+#: Arkadas/MainWindow.py:1119
+msgid " contact"
+msgstr ""
+
+#: Arkadas/MainWindow.py:1120
+msgid " contacts"
+msgstr ""
+
+#: Arkadas/Widgets.py:270
+msgid "Day"
+msgstr ""
+
+#: Arkadas/Widgets.py:276
+msgid "Month"
+msgstr ""
+
+#: Arkadas/Widgets.py:282
+msgid "Year"
 msgstr ""

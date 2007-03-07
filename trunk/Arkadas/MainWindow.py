@@ -67,19 +67,10 @@ class MainWindow:
 
 		self.window.show_all()
 
-		#args = sys.argv[1:]
-		#if len(args) > 0:
-		#	last = None
-		#	for arg in args:
-		#		last = self.import_contact(arg)
-		#	if last is not None:
-		#		self.contactSelection.select_iter(last)
-
 		def load_db():
 			self.engine.load(os.path.join(self.data_dir, "contacts.db"))
 			self.clear()
 			self.load_groups()
-			return False
 
 		gobject.idle_add(load_db)
 
@@ -1121,7 +1112,7 @@ class MainWindow:
 			except: cur_path = None
 
 			if cur_path is not None:
-				text = _("%i of %i") % (cur_path+1, length)
+				text = str(cur_path+1) + _(" of ") + str(length)
 		else:
 			text = str(length)
 			if length == 0: text = _("no contacts")
