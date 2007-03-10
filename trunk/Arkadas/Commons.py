@@ -53,10 +53,10 @@ types = {
 tel_types = ("home", "work", "cell", "work_cell", "fax", "work_fax")
 im_types = ("aim", "gadu-gadu", "groupwise", "icq", "irc", "jabber", "msn", "napster", "yahoo", "zephyr")
 
-display_formats = [r"%g %a %f", r"%p %g %a %f %s", r"%f, %g %a", r"%f %g %a"]
-address_formats = [r"%street %extended\n%box\n%city %region %code\n%country",
-					r"%street %extended\n%box\n%code %city %region\n%country",]
-sort_formats = [r"%f %g %a", r"%g %a %f"]
+display_formats = ["%g %a %f", "%p %g %a %f %s", "%f, %g %a", "%f %g %a"]
+address_formats = ["%street %extended\n%box\n%city %region %code\n%country",
+					"%street %extended\n%box\n%code %city %region\n%country",]
+sort_formats = ["%f %g %a", "%g %a %f"]
 
 def import_vcard(filename, engine, photo_dir=""):
 	contact = None

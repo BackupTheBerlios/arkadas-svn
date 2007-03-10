@@ -87,9 +87,9 @@ class MainWindow:
 		self.photo_dir = os.path.join(self.data_dir, "images")
 		if not os.path.exists(self.photo_dir): os.mkdir(self.photo_dir)
 
-		self.display_format = display_formats[0]
-		self.address_format = address_formats[0]
-		self.sort_format = sort_formats[0]
+		self.display_format = 0
+		self.address_format = 0
+		self.sort_format = 0
 
 		self.fullscreen_editing = False
 		self.photo_manip = "center"
@@ -98,26 +98,28 @@ class MainWindow:
 		self.template = ["tel", "email", "url"]
 
 	def load_prefs(self):
-		conf = ConfigParser.ConfigParser()
-		conf.read(os.path.join(self.config_dir, "arkadasrc"))
+		try:
+			conf = ConfigParser.ConfigParser()
+			conf.read(os.path.join(self.config_dir, "arkadasrc"))
 
-		if conf.has_option("format", "display"):
-			self.display_format = conf.get("format", "display")
-		if conf.has_option("format", "sort"):
-			self.sort_format = conf.get("format", "sort")
-		if conf.has_option("format", "address"):
-			self.address_format = conf.get("format", "address")
+			if conf.has_option("format", "display"):
+				self.display_format = conf.getint("format", "display")
+			if conf.has_option("format", "sort"):
+				self.sort_format = conf.getint("format", "sort")
+			if conf.has_option("format", "address"):
+				self.address_format = conf.getint("format", "address")
 
-		if conf.has_option("display", "fs_editing"):
-			self.fullscreen_editing = conf.getboolean("display", "fs_editing")
-		if conf.has_option("display", "photo_manip"):
-			self.photo_manip = conf.get("display", "photo_manip")
+			if conf.has_option("display", "fs_editing"):
+				self.fullscreen_editing = conf.getboolean("display", "fs_editing")
+			if conf.has_option("display", "photo_manip"):
+				self.photo_manip = conf.get("display", "photo_manip")
 
-		if conf.has_option("display", "template"):
-			self.template = conf.get("display", "template").split(",")
-		if conf.has_option("display", "order"):
-			self.display_order = conf.get("display", "order").split(",")
-
+			if conf.has_option("display", "template"):
+				self.template = conf.get("display", "template").split(",")
+			if conf.has_option("display", "order"):
+				self.display_order = conf.get("display", "order").split(",")
+		except:
+			print "Error while reading settings."
 
 	def save_prefs(self):
 		conf = ConfigParser.ConfigParser()
@@ -306,9 +308,9 @@ class MainWindow:
 		notebook.set_tab_label_text(self.tree.get_widget("prefBox2"), _("Template"))
 		notebook.set_tab_label_text(self.tree.get_widget("prefBox3"), _("Display Order"))
 
-		self.tree.get_widget("formatCombo").set_active(display_formats.index(self.display_format))
-		self.tree.get_widget("sortCombo").set_active(sort_formats.index(self.sort_format))
-		self.tree.get_widget("addressCombo").set_active(address_formats.index(self.address_format))
+		self.tree.get_widget("formatCombo").set_active(self.display_format)
+		self.tree.get_widget("sortCombo").set_active(self.sort_format)
+		self.tree.get_widget("addressCombo").set_active(self.address_format)
 
 		self.tree.get_widget("editingCheck").set_active(self.fullscreen_editing)
 
@@ -367,8 +369,8 @@ class MainWindow:
 		return False
 
 	def add_to_list(self, contact):
-		fullname = format_fn(self.display_format, **contact.names.__dict__)
-		sort_string = format_fn(self.sort_format, **contact.names.__dict__)
+		fullname = format_fn(display_formats[self.display_format], **contact.names.__dict__)
+		sort_string = format_fn(sort_formats[self.sort_format], **contact.names.__dict__)
 		return self.contactData.append([contact.id, fullname, sort_string])
 
 	def check_if_new(self):
@@ -384,8 +386,9 @@ class MainWindow:
 
 	def check_if_changed(self):
 		if self.edit and self.contact is not None:
+			fullname = format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
 			text = "<big><b>%s</b></big>" % _("Save the changes to contact before closing?")
-			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % format_fn(self.display_format, **self.contact.names.__dict__)
+			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % fullname
 
 			msgbox = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE)
 			msgbox.set_title("Arkadas")
@@ -405,7 +408,7 @@ class MainWindow:
 		self.editButton.set_sensitive(True)
 
 		# FIELD - fullname & nickname
-		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(self.display_format, **self.contact.names.__dict__)
+		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
 		if self.contact.hasValue("nickname"):
 			text += " (<big>%s</big>)" % self.contact.nickname
 		self.tree.get_widget("fullnameLabel").set_markup(text)
@@ -422,7 +425,7 @@ class MainWindow:
 				self.add_label(name, content)
 
 		for field in self.adrbox.vbox:
-			field.label.format = self.address_format
+			field.label.format = address_formats[self.address_format]
 
 		if self.contact.hasValue("bday"):
 			self.add_label("bday", self.contact.bday)
@@ -673,19 +676,19 @@ class MainWindow:
 		self.tree.get_widget("prefNotebook").set_current_page(0)
 		dialog.run()
 
-		self.display_format = display_formats[self.tree.get_widget("formatCombo").get_active()]
-		self.sort_format = sort_formats[self.tree.get_widget("sortCombo").get_active()]
+		self.display_format = self.tree.get_widget("formatCombo").get_active()
+		self.sort_format = self.tree.get_widget("sortCombo").get_active()
 
 		for row in self.contactData:
 			contact = self.engine.getContact(row[0])
-			fullname = format_fn(self.display_format, **contact.names.__dict__)
-			sort_string = format_fn(self.sort_format, **contact.names.__dict__)
+			fullname = format_fn(display_formats[self.display_format], **contact.names.__dict__)
+			sort_string = format_fn(sort_formats[self.sort_format], **contact.names.__dict__)
 			self.contactData[row.iter] = [contact.id, fullname, sort_string]
 
-		self.address_format = address_formats[self.tree.get_widget("addressCombo").get_active()]
+		self.address_format = self.tree.get_widget("addressCombo").get_active()
 
 		for field in self.adrbox.vbox:
-			field.label.format = self.address_format
+			field.label.format = address_formats[self.address_format]
 			field.label.set_editable(self.edit)
 
 		self.fullscreen_editing = self.tree.get_widget("editingCheck").get_active()
@@ -955,8 +958,8 @@ class MainWindow:
 
 		if self.contact.save():
 			path = self.contactSelection.get_selected_rows()[1][0][0]
-			fullname = format_fn(self.display_format, **self.contact.names.__dict__)
-			sort_string = format_fn(self.sort_format, **self.contact.names.__dict__)
+			fullname = format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
+			sort_string = format_fn(sort_formats[self.sort_format], **self.contact.names.__dict__)
 			self.contactData[path][1] = fullname
 			self.contactData[path][2] = sort_string
 		else:
@@ -1064,7 +1067,7 @@ class MainWindow:
 			self.contact.title = self.nameEntry7.get_text().replace("  "," ").strip()
 			self.contact.org = self.nameEntry8.get_text().replace("  "," ").strip()
 
-			text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(self.display_format, **self.contact.names.__dict__)
+			text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
 			if self.contact.hasValue("nickname"):
 				text += " (<big>%s</big>)" % self.contact.nickname
 			self.tree.get_widget("fullnameLabel").set_markup(text)
@@ -1165,9 +1168,9 @@ class MainWindow:
 			self.clear()
 
 	def main(self):
-		gtk.gdk.threads_enter()
+		#gtk.gdk.threads_enter()
 		gtk.main()
-		gtk.gdk.threads_leave()
+		#gtk.gdk.threads_leave()
 
 if __name__ == "__main__":
 	app = MainWindow()
