@@ -172,10 +172,10 @@ class MainWindow:
 
 		# contactlist cellrenderers
 		#cellimg = gtk.CellRendererPixbuf()
-		#cellimg.set_property("icon-name", "stock_contact")
+		#cellimg.set_property("icon-name", "stock_folder")
 		celltxt = gtk.CellRendererText()
 		celltxt.set_property("ellipsize", pango.ELLIPSIZE_END)
-		column = gtk.TreeViewColumn("Group")
+		column = gtk.TreeViewColumn(_("Group"))
 		column.set_alignment(0.5)
 		#column.pack_start(cellimg, False)
 		column.pack_start(celltxt)
@@ -191,7 +191,7 @@ class MainWindow:
 		self.contactSelection = self.contactList.get_selection()
 		self.contactSelection.set_mode(gtk.SELECTION_MULTIPLE)
 
-		self.contactData = gtk.ListStore(int, str, str)
+		self.contactData = gtk.ListStore(object, str, str)
 		self.contactData.set_sort_column_id(2, gtk.SORT_ASCENDING)
 		self.contactList.set_model(self.contactData)
 
@@ -200,7 +200,7 @@ class MainWindow:
 		cellimg.set_property("icon-name", "stock_contact")
 		celltxt = gtk.CellRendererText()
 		celltxt.set_property("ellipsize", pango.ELLIPSIZE_END)
-		column = gtk.TreeViewColumn("Name")
+		column = gtk.TreeViewColumn(_("Name"))
 		column.set_alignment(0.5)
 		column.pack_start(cellimg, False)
 		column.pack_start(celltxt)
@@ -351,41 +351,28 @@ class MainWindow:
 		model = self.groupList.get_model()
 		model.clear()
 
-		model.append([0, _("All"), ""])
+		model.append([-1, _("All"), ""])
 
 		for row in self.engine.getGroups():
 			model.append(row)
 
 		self.groupSelection.select_path((0,))
 
-	def load_contacts(self):
-		self.clear()
-		self.contactData.clear()
-
-		for id in self.engine.getList():
-			contact = self.engine.getContact(id[0])
-			if contact: self.add_to_list(contact)
-		self.contactSelection.select_path((0,))
-		return False
-
-	def add_to_list(self, contact):
+	def add_to_list(self, contact, groupadd=False):
 		fullname = format_fn(display_formats[self.display_format], **contact.names.__dict__)
 		sort_string = format_fn(sort_formats[self.sort_format], **contact.names.__dict__)
-		return self.contactData.append([contact.id, fullname, sort_string])
+		iter = self.contactData.append([contact, fullname, sort_string])
 
-	def check_if_new(self):
-		pass
-		#if self.is_new:
-			#self.is_new = False
-			#self.contactData.remove(self.iter)
-			#self.editButton_clicked(edit=False)
-			#self.clear()
-			#return True
-		#else:
-			#return False
+		if groupadd and self.groupSelection.count_selected_rows() > 0:
+			(model, g_iter) = self.groupSelection.get_selected()
+			id = model[g_iter][0]
+			if id > 0:
+				self.engine.addToGroup(id, contact.id)
+
+		return iter
 
 	def check_if_changed(self):
-		if self.edit and self.contact is not None:
+		if self.edit and self.contact:
 			fullname = format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
 			text = "<big><b>%s</b></big>" % _("Save the changes to contact before closing?")
 			sec_text = _("If you don't save, changes you made to <b>%s</b> will be permanently lost.") % fullname
@@ -399,6 +386,8 @@ class MainWindow:
 			if msgbox.run() == gtk.RESPONSE_OK:
 				self.editButton_clicked(edit=False)
 				self.saveButton_clicked()
+			elif self.is_new:
+				self.engine.removeContact(self.contact)
 			msgbox.destroy()
 
 	def parse_contact(self):
@@ -499,7 +488,6 @@ class MainWindow:
 	# event funtions
 	#---------------
 	def delete_event(self, widget, event=None):
-		self.check_if_new()
 		self.check_if_changed()
 		self.clear()
 		self.save_prefs()
@@ -508,10 +496,10 @@ class MainWindow:
 		return False
 
 	def newButton_clicked(self, widget):
-		self.check_if_new()
 		self.check_if_changed()
 		self.contactSelection.unselect_all()
 		self.clear()
+		self.is_new = True
 
 		self.contact = self.engine.addContact()
 
@@ -522,12 +510,8 @@ class MainWindow:
 			else:
 				self.contact.add(name).value = ""
 
-		iter = self.contactData.append([self.contact.id, _("Unnamed"), ""])
-
 		self.parse_contact()
 		self.editButton_clicked()
-		self.is_new = True
-		self.undoButton.hide()
 		self.namechangeButton_clicked(None)
 
 	def importButton_clicked(self, widget):
@@ -550,7 +534,7 @@ class MainWindow:
 			for filename in dialog.get_filenames():
 				contact = import_vcard(filename, self.engine, self.photo_dir)
 				if contact:
-					last = self.add_to_list(contact)
+					last = self.add_to_list(contact, True)
 				else:
 					error(_("There was an error while importing contacts."), self.window)
 					dialog.destroy()
@@ -601,7 +585,7 @@ class MainWindow:
 	def deleteButton_clicked(self, widget):
 		selected = self.contactSelection.count_selected_rows() > 0
 		many = self.contactSelection.count_selected_rows() > 1
-		if selected and not self.check_if_new():
+		if selected:
 			(model, paths) = self.contactSelection.get_selected_rows()
 
 			if many:
@@ -647,7 +631,7 @@ class MainWindow:
 			iters = []
 
 			for path in paths:
-				self.engine.removeFromGroup(group_id, model[path][0])
+				self.engine.removeFromGroup(group_id, model[path][0].id)
 				iters.append(model.get_iter(path))
 
 			for iter in iters:
@@ -680,10 +664,10 @@ class MainWindow:
 		self.sort_format = self.tree.get_widget("sortCombo").get_active()
 
 		for row in self.contactData:
-			contact = self.engine.getContact(row[0])
+			contact = row[0]
 			fullname = format_fn(display_formats[self.display_format], **contact.names.__dict__)
 			sort_string = format_fn(sort_formats[self.sort_format], **contact.names.__dict__)
-			self.contactData[row.iter] = [contact.id, fullname, sort_string]
+			self.contactData[row.iter] = [contact, fullname, sort_string]
 
 		self.address_format = self.tree.get_widget("addressCombo").get_active()
 
@@ -893,14 +877,19 @@ class MainWindow:
 			self.contactSelection.unselect_all()
 			self.contactSelection.select_path((cur_path,))
 			self.contactData_change()
+		elif len(self.contactData) > 0:
+			self.contactSelection.select_path((0,))
 
 	def undoButton_clicked(self, button):
 		id = self.contact.id
 		self.edit = False
-		self.clear()
-		self.contact = self.engine.getContact(id)
-		self.parse_contact()
 		self.editButton_clicked(edit=False)
+		self.clear()
+		if self.is_new:
+			self.engine.removeContact(id)
+		else:
+			self.contact = self.engine.getContact(id)
+			self.parse_contact()
 
 	def editButton_clicked(self, button=None, edit=True):
 		self.edit = edit
@@ -954,16 +943,14 @@ class MainWindow:
 
 	def saveButton_clicked(self, button=None):
 		self.editButton_clicked(edit=False)
-		self.is_new = False
 
 		if self.contact.save():
-			path = self.contactSelection.get_selected_rows()[1][0][0]
-			fullname = format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
-			sort_string = format_fn(sort_formats[self.sort_format], **self.contact.names.__dict__)
-			self.contactData[path][1] = fullname
-			self.contactData[path][2] = sort_string
+			if self.is_new:
+				self.add_to_list(self.contact, True)
 		else:
 			error(_("Unable to save the contact."), self.window)
+
+		self.is_new = False
 
 	def imageopenButton_clicked(self, button):
 		def update_preview(filechooser):
@@ -1089,7 +1076,7 @@ class MainWindow:
 				if group_id > 0:
 					for id in data.split(","):
 						if id.isdigit(): self.engine.addToGroup(group_id, id)
-					self.groupSelection.select_path(dest_row[0])
+					#self.groupSelection.select_path(dest_row[0])
 
 	def groupSelection_change(self, selection):
 		(model, iter) = selection.get_selected()
@@ -1127,40 +1114,43 @@ class MainWindow:
 	def contactList_drag_data_get(self, treeview, drag_context, selection, info, timestamp):
 		(model, paths) = self.contactSelection.get_selected_rows()
 		if paths:
-			data = ",".join(str(model[path][0]) for path in paths)
+			data = ",".join(str(model[path][0].id) for path in paths)
 			selection.set_text(data)
 
 	def contactList_popup(self, widget, time=0):
-		if self.contactSelection.count_selected_rows() > 0:
-			self.tree.get_widget("contactlistMenu").popup(None, None, None, 3, time)
+		pass
+		#if self.contactSelection.count_selected_rows() > 0:
+		#	self.tree.get_widget("contactlistMenu").popup(None, None, None, 3, time)
 
-	def contactList_pressed(self, widget, event):
-		if event.button == 3:
-			self.contactList_popup(widget, event.time)
+	def contactList_pressed(self, treeview, event):
+ 		if event.button == 3:
+			info = treeview.get_path_at_pos(int(event.x), int(event.y))
+			if info:
+				path, col, cellx, celly = info
+				treeview.grab_focus()
+				treeview.set_cursor(path, col, 0)
+				self.tree.get_widget("contactlistMenu").popup(None, None, None, event.button, event.time)
+			return True
 
 	def contactList_clicked(self, *args):
 		self.contactSelection_change(edit=True)
 
 	def contactSelection_change(self, selection=None, edit=False):
-		selected = (self.contactSelection.count_selected_rows() > 0)
-
-		self.tree.get_widget("contactMenuitem").set_property("visible", selected)
-
-		self.check_if_new()
 		self.check_if_changed()
 
-		if selected:
+		if self.contactSelection.count_selected_rows():
 			(model, paths) = self.contactSelection.get_selected_rows()
 
-			if self.contact and self.contact.id == model[paths[0]][0]:
+			if self.contact == model[paths[0]][0]:
 				again = True
 			else:
 				again = False
 
 			if not again:
 				self.clear()
-				self.contact = self.engine.getContact(model[paths[0]][0])
-				self.parse_contact()
+				if isinstance(model[paths[0]][0], ContactEngine.Contact):
+					self.contact = model[paths[0]][0]
+					self.parse_contact()
 
 			if self.contact:
 				self.editButton_clicked(edit=edit)

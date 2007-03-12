@@ -61,7 +61,7 @@ sort_formats = ["%f %g %a", "%g %a %f"]
 def import_vcard(filename, engine, photo_dir=""):
 	contact = None
 
-	vcards = vobject.readComponent(file(filename, "r"))
+	vcards = vobject.readComponents(file(filename, "r"))
 
 	for vcard in vcards:
 		try:

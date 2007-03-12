@@ -95,6 +95,8 @@ class ContactDB:
 	def getList(self, group_id=-1):
 		if group_id > 0:
 			return self.conn.execute("select contact_id from members where group_id=?", (group_id,)).fetchall()
+		elif group_id==0:
+			return self.conn.execute("select contact_id from contacts where contact_id not in (select contact_id from members)").fetchall()
 		else:
 			return self.conn.execute("select contact_id from contacts").fetchall()
 
@@ -141,7 +143,12 @@ class ContactDB:
 		self.conn.commit()
 		return self.getContact(cur.lastrowid)
 
-	def removeContact(self, id):
+	def removeContact(self, obj):
+		if isinstance(obj, Contact):
+			id = obj.id
+		else:
+			id = obj
+
 		query = "delete from contacts where contact_id=?"
 		self.conn.execute(query, (id,))
 		query = "delete from addresses where contact_id=?"
