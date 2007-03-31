@@ -35,7 +35,7 @@ types = {
 	"bday":_("Birthday"), "url":_("Website"),
 	"email":"Email", "adr":_("Address"),
 	"im":"Instant Messaging",
-	"note":_("Notes:"), "tel":_("Phone"),
+	"note":_("Notes"), "tel":_("Phone"),
 	# address types
 	"box":_("Postbox"), "extended":_("Extended"),
 	"street":_("Street"), "city":_("City"),
@@ -59,6 +59,7 @@ address_formats = ["%street %extended\n%box\n%city %region %code\n%country",
 sort_formats = ["%f %g %a", "%g %a %f"]
 
 def import_vcard(filename, engine, photo_dir=""):
+	contacts = []
 	contact = None
 
 	vcards = vobject.readComponents(file(filename, "r"))
@@ -66,7 +67,7 @@ def import_vcard(filename, engine, photo_dir=""):
 	for vcard in vcards:
 		try:
 			contact = engine.addContact()
-
+			
 			if vcard.version.value == "3.0":
 				names = vcard.n.value.__dict__
 			else:
@@ -87,7 +88,6 @@ def import_vcard(filename, engine, photo_dir=""):
 							data = vcard.photo.value
 
 						if photo_dir and contact.uuid:
-							import os
 							path = os.path.join(photo_dir, contact.uuid)
 							pfile = file(path, "w")
 							pfile.write(data)
@@ -133,21 +133,22 @@ def import_vcard(filename, engine, photo_dir=""):
 				if im:
 					for field in vcard.contents[""]:
 						content = contact.add("im")
-						content
 
 			contact.save()
+			contacts.append(contact)
 
 		except:
 			if contact: engine.removeContact(contact.id)
+			raise
 
-	return contact
+	return contacts
 
 def export_vcard(filename, contact):
 	try:
 		vcard = vobject.vCard()
 
 		vcard.add("n").value = vobject.vcard.Name(**contact.names.__dict__)
-		vcard.add("fn").value = format_fn(DISPLAY_FORMAT, **contact.names.__dict__)
+		vcard.add("fn").value = format_fn(display_formats[1], **contact.names.__dict__)
 
 		for name in ("nickname", "org", "title", "note", "bday", "photo"):
 			field = getattr(contact, name, None)

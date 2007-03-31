@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import sys, os, gc, socket, ConfigParser
+import sys, os, gc, socket, threading, datetime, ConfigParser
+
 import gtk, gtk.glade, gobject, pango
 
 # Test pygtk version
@@ -65,6 +66,7 @@ class MainWindow:
 		self.build_table()
 		self.build_prefs()
 
+		self.window.set_app_paintable(True)
 		self.window.show_all()
 
 		def load_db():
@@ -92,6 +94,7 @@ class MainWindow:
 		self.sort_format = 0
 
 		self.fullscreen_editing = False
+		self.show_separator = True
 		self.photo_manip = "center"
 
 		self.display_order = ["tel", "email", "url", "im", "bday", "adr"]
@@ -111,6 +114,8 @@ class MainWindow:
 
 			if conf.has_option("display", "fs_editing"):
 				self.fullscreen_editing = conf.getboolean("display", "fs_editing")
+			if conf.has_option("display", "show_separator"):
+				self.show_separator = conf.getboolean("display", "show_separator")
 			if conf.has_option("display", "photo_manip"):
 				self.photo_manip = conf.get("display", "photo_manip")
 
@@ -133,6 +138,7 @@ class MainWindow:
 
 		conf.add_section("display")
 		conf.set("display", "fs_editing", self.fullscreen_editing)
+		conf.set("display", "show_separator", self.show_separator)
 		conf.set("display", "photo_manip", self.photo_manip)
 		conf.set("display", "template", ",".join(self.template))
 		conf.set("display", "order", ",".join(self.display_order))
@@ -165,7 +171,7 @@ class MainWindow:
 		dnd = [("STRING", gtk.TARGET_SAME_APP, 0)]
 
 		model = gtk.ListStore(int, str, str)
-		model.set_sort_column_id(1, gtk.SORT_ASCENDING)
+		#model.set_sort_column_id(1, gtk.SORT_ASCENDING)
 
 		self.groupList.set_model(model)
 		self.groupSelection = self.groupList.get_selection()
@@ -182,11 +188,13 @@ class MainWindow:
 		column.add_attribute(celltxt,"text", 1)
 		self.groupList.append_column(column)
 
+		self.groupList.set_row_separator_func(lambda m,i: m[i][1]=="")
+
 		self.groupList.enable_model_drag_dest(dnd, gtk.gdk.ACTION_DEFAULT | gtk.gdk.ACTION_MOVE)
 
 		# events
 		self.groupList.connect("row-activated", lambda t,p,v: self.groupaddButton_clicked(edit=True))
-		self.groupSelection.connect("changed", self.groupSelection_change)
+		self.groupSelection.connect("changed", self.groupSelection_changed)
 
 		self.contactSelection = self.contactList.get_selection()
 		self.contactSelection.set_mode(gtk.SELECTION_MULTIPLE)
@@ -194,6 +202,11 @@ class MainWindow:
 		self.contactData = gtk.ListStore(object, str, str)
 		self.contactData.set_sort_column_id(2, gtk.SORT_ASCENDING)
 		self.contactList.set_model(self.contactData)
+		
+		def search_func(model, column, key, iter):
+			return not (key.lower() in model[iter][1].lower())
+		
+		self.contactList.set_search_equal_func(search_func)
 
 		# contactlist cellrenderers
 		cellimg = gtk.CellRendererPixbuf()
@@ -210,9 +223,9 @@ class MainWindow:
 		self.contactList.enable_model_drag_source(gtk.gdk.BUTTON1_MASK, dnd, gtk.gdk.ACTION_DEFAULT | gtk.gdk.ACTION_MOVE)
 
 		# events
-		self.contactData.connect("row-deleted", self.contactData_change, None)
-		self.contactData.connect("row-inserted", self.contactData_change)
-		self.contactSelection.connect("changed", self.contactSelection_change)
+		self.contactData.connect("row-deleted", self.contactData_changed, None)
+		self.contactData.connect("row-inserted", self.contactData_changed)
+		self.contactSelection.connect("changed", self.contactSelection_changed)
 
 		self.contactList.grab_focus()
 
@@ -261,28 +274,19 @@ class MainWindow:
 
 		# fieldholder
 
-		for name in ("tel", "email", "url", "im", "adr", "bday"):
-			setattr(self, name+"box", EventVBox(name, self.hsizegroup))
+		for name in ("tel", "email", "url", "im", "adr", "bday", "note"):
+			setattr(self, name+"box", EventVBox(name, self.hsizegroup, self.show_separator))
 
 		self.adrbox.vbox.set_spacing(4)
-
-		self.notebox = gtk.VBox(False, 6)
 
 		# add fieldholder by order
 		for type in self.display_order:
 			box = getattr(self, type+"box")
 			self.table.pack_start(box, False)
 
-		self.table.pack_start(self.notebox)
+		self.table.pack_start(self.notebox, False)
 
 		# add note field
-		self.notebox.pack_start(gtk.HSeparator(), False)
-
-		caption = gtk.Label()
-		caption.set_markup("<span foreground=\"dim grey\"><b>%s</b></span>" % types["note"])
-		caption.set_alignment(0, 0.5)
-		self.notebox.pack_start(caption, False)
-
 		scrolledwindow = gtk.ScrolledWindow()
 		scrolledwindow.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_NEVER)
 
@@ -295,24 +299,22 @@ class MainWindow:
 		textview.set_left_margin(2)
 		textview.set_right_margin(2)
 		scrolledwindow.add(textview)
-		self.notebox.add(scrolledwindow)
+		self.notebox.add_field(scrolledwindow)
 
-		self.notebox.hide_all()
+		self.notebox.hide()
+		
+		self.modifiedLabel = gtk.Label()
+		self.modifiedLabel.set_alignment(1, 1)
+		self.modifiedLabel.show()
+		self.table.pack_end(self.modifiedLabel)
 
 	def build_prefs(self):
-		dialog = self.tree.get_widget("prefsDialog")
-
-		notebook = self.tree.get_widget("prefNotebook")
-
-		notebook.set_tab_label_text(self.tree.get_widget("prefBox1"), _("General"))
-		notebook.set_tab_label_text(self.tree.get_widget("prefBox2"), _("Template"))
-		notebook.set_tab_label_text(self.tree.get_widget("prefBox3"), _("Display Order"))
-
 		self.tree.get_widget("formatCombo").set_active(self.display_format)
 		self.tree.get_widget("sortCombo").set_active(self.sort_format)
 		self.tree.get_widget("addressCombo").set_active(self.address_format)
 
 		self.tree.get_widget("editingCheck").set_active(self.fullscreen_editing)
+		self.tree.get_widget("editingCheck").set_active(self.show_separator)
 
 		if self.photo_manip in ("crop", "center"):
 			self.tree.get_widget(self.photo_manip+"Radio").set_active(True)
@@ -351,7 +353,9 @@ class MainWindow:
 		model = self.groupList.get_model()
 		model.clear()
 
-		model.append([-1, _("All"), ""])
+		model.append([-1, _("All contacts"), ""])
+		model.append([0, _("Uncategorized"), ""])
+		model.append([0, "", ""])
 
 		for row in self.engine.getGroups():
 			model.append(row)
@@ -397,7 +401,7 @@ class MainWindow:
 		self.editButton.set_sensitive(True)
 
 		# FIELD - fullname & nickname
-		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(display_formats[self.display_format], **self.contact.names.__dict__)
+		text = "<span size=\"x-large\"><b>%s</b></span>" % format_fn(display_formats[1], **self.contact.names.__dict__)
 		if self.contact.hasValue("nickname"):
 			text += " (<big>%s</big>)" % self.contact.nickname
 		self.tree.get_widget("fullnameLabel").set_markup(text)
@@ -419,13 +423,13 @@ class MainWindow:
 		if self.contact.hasValue("bday"):
 			self.add_label("bday", self.contact.bday)
 
-		textbuffer = self.notebox.get_children()[2].get_child().get_buffer()
+		textbuffer = self.notebox.vbox.get_children()[0].get_child().get_buffer()
 		if self.contact.hasValue("note"):
 			textbuffer.set_text(self.contact.note)
-			self.notebox.show_all()
+			self.notebox.show()
 		else:
 			textbuffer.set_text("")
-			self.notebox.hide_all()
+			self.notebox.hide()
 
 		self.table.show()
 
@@ -452,6 +456,12 @@ class MainWindow:
 
 		self.photoImage.show()
 		self.photoImage.set_from_pixbuf(pixbuf)
+		
+		
+		markup = "<small>%s</small>"
+		date = datetime.datetime.strptime(self.contact.modified, "%Y-%m-%dT%H:%M:%S")
+		text = _("Modified on %s - %s") % (date.strftime("%x"), date.strftime("%X"))
+		self.modifiedLabel.set_markup(markup % text)
 
 	def clear(self):
 		self.engine.conn.rollback()
@@ -532,9 +542,10 @@ class MainWindow:
 		if dialog.run() == gtk.RESPONSE_OK:
 			last = None
 			for filename in dialog.get_filenames():
-				contact = import_vcard(filename, self.engine, self.photo_dir)
-				if contact:
-					last = self.add_to_list(contact, True)
+				contacts = import_vcard(filename, self.engine, self.photo_dir)
+				if contacts:
+					for contact in contacts:
+						last = self.add_to_list(contact, True)
 				else:
 					error(_("There was an error while importing contacts."), self.window)
 					dialog.destroy()
@@ -549,7 +560,10 @@ class MainWindow:
 		dialog.destroy()
 
 	def exportButton_clicked(self, widget):
-		dialog = gtk.FileChooserDialog(title=_("Export Contacts"),action=gtk.FILE_CHOOSER_ACTION_SAVE,buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+		dialog = gtk.FileChooserDialog(title=_("Export Contacts"),
+										action=gtk.FILE_CHOOSER_ACTION_SAVE,
+										buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+
 		dialog.set_default_response(gtk.RESPONSE_OK)
 
 		filter = gtk.FileFilter()
@@ -569,10 +583,11 @@ class MainWindow:
 		if dialog.run() == gtk.RESPONSE_OK:
 			filename = dialog.get_filename()
 			if filename:
-				if not check.get_active(): os.remove(filename)
+				if not check.get_active() and os.path.exists(filename): os.remove(filename)
 				(model, paths) = self.contactSelection.get_selected_rows()
 
 				for path in paths:
+					#FIXME: use id or contact as param
 					if not export_vcard(filename, self.engine.getContact(model[path][0])):
 						error(_("There was an error while exporting contacts."), self.window)
 						dialog.destroy()
@@ -612,7 +627,12 @@ class MainWindow:
 
 				iters = []
 				for path in paths:
-					self.engine.removeContact(model[path][0])
+					contact = self.engine.getContact(model[path][0])
+					
+					image_path = os.path.join(self.photo_dir, contact.uuid)
+					if os.path.exists(image_path): os.remove(image_path)
+					
+					self.engine.removeContact(contact)
 					iters.append(model.get_iter(path))
 
 				for iter in iters:
@@ -652,7 +672,7 @@ class MainWindow:
 			item2.show()
 		hpaned.get_child1().set_property("visible", self.fullscreen)
 		self.fullscreen = not self.fullscreen
-		self.contactData_change()
+		self.contactData_changed()
 
 	def prefsButton_clicked(self, widget):
 		dialog = self.tree.get_widget("prefsDialog")
@@ -676,6 +696,7 @@ class MainWindow:
 			field.label.set_editable(self.edit)
 
 		self.fullscreen_editing = self.tree.get_widget("editingCheck").get_active()
+		self.show_separator = self.tree.get_widget("showlineCheck").get_active()
 
 		for opt in ("none", "crop", "center"):
 			if self.tree.get_widget(opt+"Radio").get_active():
@@ -691,11 +712,10 @@ class MainWindow:
 		for name in ("tel", "email", "url", "im", "adr", "bday", "note"):
 			self.table.remove(getattr(self, name+"box"))
 
-		for type in self.display_order:
+		for type in self.display_order + ["note"]:
 			box = getattr(self, type+"box")
+			box.set_separator(self.show_separator)
 			self.table.pack_start(box, False)
-
-		self.table.pack_start(self.notebox)
 
 		self.save_prefs()
 		dialog.hide()
@@ -758,7 +778,7 @@ class MainWindow:
 				group = model[iter]
 			else: return
 
-			if group[0] == 0: return
+			if group[0] in (-1, 0): return
 
 		dialog = gtk.Dialog(None, self.window, gtk.DIALOG_MODAL, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
  		if edit:
@@ -876,7 +896,7 @@ class MainWindow:
 				cur_path = 0
 			self.contactSelection.unselect_all()
 			self.contactSelection.select_path((cur_path,))
-			self.contactData_change()
+			self.contactData_changed()
 		elif len(self.contactData) > 0:
 			self.contactSelection.select_path((0,))
 
@@ -890,6 +910,7 @@ class MainWindow:
 		else:
 			self.contact = self.engine.getContact(id)
 			self.parse_contact()
+		self.contactData_changed()
 
 	def editButton_clicked(self, button=None, edit=True):
 		self.edit = edit
@@ -924,7 +945,7 @@ class MainWindow:
 			self.contact.bday = field.label.content
 			break
 
-		scrolledwindow = self.notebox.get_children()[2]
+		scrolledwindow = self.notebox.vbox.get_children()[0]
 		textview = scrolledwindow.get_child()
 		textbuffer = textview.get_buffer()
 
@@ -936,11 +957,10 @@ class MainWindow:
 		self.contact.note = textbuffer.get_text(*textbuffer.get_bounds()).strip()
 
 		if self.contact.hasValue("note") or edit:
-			self.notebox.show_all()
+			self.notebox.show()
 		else:
-			self.notebox.hide_all()
-
-
+			self.notebox.hide()
+			
 	def saveButton_clicked(self, button=None):
 		self.editButton_clicked(edit=False)
 
@@ -951,30 +971,36 @@ class MainWindow:
 			error(_("Unable to save the contact."), self.window)
 
 		self.is_new = False
+		self.contactData_changed()	
+		
+		markup = "<small>%s</small>"
+		date = datetime.datetime.strptime(self.contact.modified, "%Y-%m-%dT%H:%M:%S")
+		text = _("Modified on %s - %s") % (date.strftime("%x"), date.strftime("%X"))
+		self.modifiedLabel.set_markup(markup % text)	
 
 	def imageopenButton_clicked(self, button):
 		def update_preview(filechooser):
 			filename = filechooser.get_preview_filename()
 			pixbuf = get_pixbuf_of_size_from_file(filename, 128)
-			if pixbuf is None:
-				pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, 1, 8, 128, 128)
-				pixbuf.fill(0x00000000)
-			else:
-				pixbuf = get_pad_pixbuf(pixbuf, 128, 128)
 			preview.set_from_pixbuf(pixbuf)
-			filechooser.set_preview_widget_active(True)
-			del pixbuf
-
-		dialog = gtk.FileChooserDialog(title=_("Open Image"),action=gtk.FILE_CHOOSER_ACTION_OPEN,buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+			filechooser.set_preview_widget_active(pixbuf is not None)
+			
+		dialog = gtk.FileChooserDialog(title=_("Open Image"),
+										action=gtk.FILE_CHOOSER_ACTION_OPEN,
+										buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+										
+		dialog.set_icon_name("gtk-open")
 		dialog.set_default_response(gtk.RESPONSE_OK)
-		filter = gtk.FileFilter()
-		filter.set_name(_("Images"))
-		filter.add_pixbuf_formats()
-		dialog.add_filter(filter)
-		filter = gtk.FileFilter()
-		filter.set_name(_("All Files"))
-		filter.add_pattern("*")
-		dialog.add_filter(filter)
+		
+		filefilter = gtk.FileFilter()
+		filefilter.set_name(_("Images"))
+		filefilter.add_pixbuf_formats()
+		dialog.add_filter(filefilter)
+		filefilter = gtk.FileFilter()
+		filefilter.set_name(_("All Files"))
+		filefilter.add_pattern("*")
+		dialog.add_filter(filefilter)
+		
 		preview = gtk.Image()
 		dialog.set_preview_widget(preview)
 		dialog.set_use_preview_label(False)
@@ -1071,14 +1097,16 @@ class MainWindow:
 
 		if data:
 			dest_row = treeview.get_dest_row_at_pos(x, y)
-			if dest_row[1] in (gtk.TREE_VIEW_DROP_INTO_OR_BEFORE, gtk.TREE_VIEW_DROP_INTO_OR_AFTER):
-				group_id = treeview.get_model()[dest_row[0]][0]
-				if group_id > 0:
-					for id in data.split(","):
-						if id.isdigit(): self.engine.addToGroup(group_id, id)
-					#self.groupSelection.select_path(dest_row[0])
+			if dest_row:
+				if dest_row[1] in (gtk.TREE_VIEW_DROP_INTO_OR_BEFORE, gtk.TREE_VIEW_DROP_INTO_OR_AFTER):
+					group_id = treeview.get_model()[dest_row[0]][0]
+					if group_id > 0:
+						for id in data.split(","):
+							if id.isdigit(): self.engine.addToGroup(group_id, id)
+						#self.groupSelection.select_path(dest_row[0])
+			return True
 
-	def groupSelection_change(self, selection):
+	def groupSelection_changed(self, selection):
 		(model, iter) = selection.get_selected()
 
 		self.contactData.clear()
@@ -1088,12 +1116,15 @@ class MainWindow:
 				if contact is not None:
 					self.add_to_list(contact)
 			self.contactSelection.select_path((0,))
-			self.tree.get_widget("removefromItem").set_property("visible", model[iter][0])
-			self.tree.get_widget("removefromItem2").set_property("visible", model[iter][0])
-			self.tree.get_widget("separatormenuitemR").set_property("visible", model[iter][0])
-			self.tree.get_widget("separatormenuitemR2").set_property("visible", model[iter][0])
+			
+			fakegroup = model[iter][0] in (-1, 0)
+			
+			self.tree.get_widget("removefromItem").set_property("visible", not fakegroup)
+			self.tree.get_widget("removefromItem2").set_property("visible", not fakegroup)
+			self.tree.get_widget("separatormenuitemR").set_property("visible", not fakegroup)
+			self.tree.get_widget("separatormenuitemR2").set_property("visible", not fakegroup)
 
-	def contactData_change(self, *args):
+	def contactData_changed(self, *args):
 		length = len(self.contactData)
 
 		text = ""
@@ -1116,26 +1147,23 @@ class MainWindow:
 		if paths:
 			data = ",".join(str(model[path][0].id) for path in paths)
 			selection.set_text(data)
+			return True
 
-	def contactList_popup(self, widget, time=0):
-		pass
-		#if self.contactSelection.count_selected_rows() > 0:
-		#	self.tree.get_widget("contactlistMenu").popup(None, None, None, 3, time)
+	def contactList_popup(self, widget):
+		if self.contactSelection.count_selected_rows() > 0:
+			self.tree.get_widget("contactlistMenu").popup(None, None, None, 3, 0)
 
 	def contactList_pressed(self, treeview, event):
  		if event.button == 3:
-			info = treeview.get_path_at_pos(int(event.x), int(event.y))
-			if info:
-				path, col, cellx, celly = info
+			if self.contactSelection.count_selected_rows() > 0:
 				treeview.grab_focus()
-				treeview.set_cursor(path, col, 0)
 				self.tree.get_widget("contactlistMenu").popup(None, None, None, event.button, event.time)
 			return True
 
 	def contactList_clicked(self, *args):
-		self.contactSelection_change(edit=True)
+		self.contactSelection_changed(edit=True)
 
-	def contactSelection_change(self, selection=None, edit=False):
+	def contactSelection_changed(self, selection=None, edit=False):
 		self.check_if_changed()
 
 		if self.contactSelection.count_selected_rows():
@@ -1156,6 +1184,8 @@ class MainWindow:
 				self.editButton_clicked(edit=edit)
 		else:
 			self.clear()
+			
+		self.tree.get_widget("contactMenuitem").set_property("visible", self.contactSelection.count_selected_rows() > 0)
 
 	def main(self):
 		#gtk.gdk.threads_enter()

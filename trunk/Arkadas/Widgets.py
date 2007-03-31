@@ -24,9 +24,10 @@ from Commons import *
 class Field(gtk.EventBox):
 	def __init__(self, name, content):
 		gtk.EventBox.__init__(self)
+		self.set_visible_window(False)
 		#self.set_flags(gtk.CAN_FOCUS)
 		#self.set_above_child(True)
-		self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
+		#self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
 
 		#self.connect("focus-out-event", lambda w,e: self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white")))
 		#self.connect("focus-in-event", lambda w,e: self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("blue")))
@@ -74,7 +75,7 @@ class Field(gtk.EventBox):
 
 			def typeCombo_changed(combo):
 				title, self.content.type = combo.get_model()[combo.get_active()]
-				self.typeLabel.set_markup("<span foreground=\"dim grey\"><i>%s</i></span>" % title)
+				self.typeLabel.set_markup("<i>%s</i>" % title)
 
 			self.typeLabel = gtk.Label()
 			self.typeLabel.set_alignment(0, 0)
@@ -93,7 +94,7 @@ class Field(gtk.EventBox):
 
 			typeCombo_changed(self.typeCombo)
 			self.typeCombo.connect("changed", typeCombo_changed)
-			self.hbox.pack_start(self.typeCombo, False)
+			self.hbox.pack_start(self.typeCombo)
 
 		self.removeButton = gtk.Button()
 		self.removeButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REMOVE, gtk.ICON_SIZE_MENU))
@@ -137,6 +138,7 @@ class CustomLabel(gtk.HBox):
 
 		if self.link:
 			self.eventbox = gtk.EventBox()
+			self.eventbox.set_visible_window(False)
 			self.eventbox.set_above_child(True)
 			self.eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
 			self.eventbox.add(self.label)
@@ -305,11 +307,10 @@ class BirthdayField(gtk.HBox):
 		self.datebox.set_property("visible", editable)
 
 class EventVBox(gtk.HBox):
-	def __init__(self, name, sizegroup=None):
+	def __init__(self, name, sizegroup=None, separator=True):
 		gtk.HBox.__init__(self)
 		self.set_no_show_all(True)
 
-		self.sname = name
 		self.sizegroup = sizegroup
 
 		# caption
@@ -319,13 +320,14 @@ class EventVBox(gtk.HBox):
 		self.pack_start(self.caption, False)
 
 		sep = gtk.VSeparator()
-		sep.show()
 		self.pack_start(sep, False, padding=4)
 
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
 
 		self.vbox.connect("remove", self.remove_event)
+		
+		self.set_separator(separator)
 
 	def add_field(self, widget):
 		if len(self.vbox.get_children()) == 0 and self.sizegroup:
@@ -340,3 +342,6 @@ class EventVBox(gtk.HBox):
 		if not len(container.get_children()):
 			if self.sizegroup: self.sizegroup.remove_widget(self.caption)
 			self.hide()
+			
+	def set_separator(self, separator):
+		self.get_children()[1].set_property("visible", separator)

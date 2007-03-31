@@ -17,12 +17,23 @@
 #	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
-import sqlite3
+from datetime import datetime
+from uuid import uuid4
+
+try:
+	import sqlite3
+except ImportError:
+	from pysqlite2 import dbapi2 as sqlite3 
 
 NAME_ORDER = ("family", "given", "additional", "prefix", "suffix")
 ADDRESS_ORDER = ("street", "city", "region", "code", "country", "box", "extended")
 
 class ContactDB:
+	"""
+	This class is used for the DB connection.
+	It includes the functions to load contacts and groups.
+	"""
+	
 	def __init__(self, filename=None):
 		self.conn = None
 
@@ -30,6 +41,10 @@ class ContactDB:
 			self.load(filename)
 
 	def load(self, filename, create=True):
+		"""
+		Load DB from file and if it doesn't exists create it.
+		"""
+		
 		if os.path.exists(filename):
 			self.conn = sqlite3.connect(filename)
 		elif create:
@@ -38,11 +53,17 @@ class ContactDB:
 		return True
 
 	def create(self, filename):
+		"""
+		Create DB and fill with tables.
+		"""
+		
 		self.conn = sqlite3.connect(filename)
 
 		query = """create table contacts(
 			contact_id	integer primary key,
-			uuid		text,
+			uuid		text unique,
+			created		text,
+			modified	text,
 			name_f		text,
 			name_g		text,
 			name_a		text,
@@ -93,6 +114,12 @@ class ContactDB:
 			return False
 
 	def getList(self, group_id=-1):
+		"""
+		Get list of contacts in specified group.
+		Group-ID = -1 return all
+		Group-ID = 0 return uncategorized 
+		"""
+		
 		if group_id > 0:
 			return self.conn.execute("select contact_id from members where group_id=?", (group_id,)).fetchall()
 		elif group_id==0:
@@ -122,10 +149,17 @@ class ContactDB:
 		self.conn.commit()
 
 	def getContact(self, id):
+		"""
+		Fetches contact and contents from DB.
+		Return Contact object.
+		"""
+		
+		if isinstance(id, Contact): return id
+		
 		try:
 			data = self.conn.execute("select * from contacts where contact_id=?", (id,)).fetchone()
 
-			contact = Contact(self.conn, data[0], Name(*data[2:7]), data[1], *data[7:13])
+			contact = Contact(self.conn, data[0], Name(*data[4:9]), data[1], data[2], data[3], *data[9:])
 
 			for row in self.conn.execute("select * from contents where contact_id=?", (id,)).fetchall():
 				getattr(contact, row[2]+"_list").append(Content(row[0], *row[2:]))
@@ -144,31 +178,53 @@ class ContactDB:
 		return self.getContact(cur.lastrowid)
 
 	def removeContact(self, obj):
-		if isinstance(obj, Contact):
-			id = obj.id
-		else:
-			id = obj
-
+		id = self.getIDfromObj(obj)
+		
 		query = "delete from contacts where contact_id=?"
 		self.conn.execute(query, (id,))
 		query = "delete from addresses where contact_id=?"
 		self.conn.execute(query, (id,))
 		query = "delete from contents where contact_id=?"
 		self.conn.execute(query, (id,))
+		query = "delete from members where contact_id=?"
+		self.conn.execute(query, (id,))
 		self.conn.commit()
 
 	def addToGroup(self, group_id, contact_id):
+		if self.isInGroup(group_id, contact_id): return False
+		
 		query = "insert into members values(null,?,?)"
 		self.conn.execute(query, (group_id,contact_id))
 		self.conn.commit()
+		return True
 
-	def removeFromGroup(self, group_id, contact_id):
+	def removeFromGroup(self, group_id, contact_obj):
+		contact_id = self.getIDfromObj(contact_obj)
+		if self.isInGroup(group_id, contact_id): return False
+		
 		query = "delete from members where group_id=? and contact_id=?"
 		self.conn.execute(query, (group_id,contact_id))
 		self.conn.commit()
+		return True
+		
+	def isInGroup(self, group_id, contact_id):
+		query = "select count(*) from members where group_id=? and contact_id=?"
+		return int(self.conn.execute(query, (group_id,contact_id)).fetchone()[0]) > 0
+		
+	def getIDfromObj(self, obj):
+		if isinstance(obj, Contact):
+			id = obj.id
+		else:
+			id = obj
+		return id
 
 class Contact(object):
-	def __init__(self, conn, id, names, uuid=None, nickname="", title="", org="", bday="", note="", photo=""):
+	"""
+	This class is used as container of the contact values.
+	It contains the Content objects. 
+	"""
+	
+	def __init__(self, conn, id, names, uuid=None, created="", modified="", nickname="", title="", org="", bday="", note="", photo=""):
 		if not isinstance(conn, sqlite3.Connection): return None
 
 		self.conn = conn
@@ -177,8 +233,17 @@ class Contact(object):
 		if uuid:
 			self.uuid = uuid
 		else:
-			from uuid import uuid4
 			self.uuid = str(uuid4())
+			
+		if created:
+			self.created = created
+		else:
+			self.created = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+			
+		if modified:
+			self.modified = modified
+		else:
+			self.modified = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 		self.names = names
 		self.tel_list = []
@@ -223,13 +288,19 @@ class Contact(object):
 		getattr(self, content.name+"_list").remove(content)
 
 	def save(self):
+		"""
+		Move through the contents and save to DB. 
+		"""
+		
 		try:
+			self.modified = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+			
 			query = """update contacts set
-			uuid=?,
+			uuid=?, modified=?,
 			name_f=?, name_g=?, name_a=?, name_p=?, name_s=?,
 			nickname=?, title=?, org=?, bday=?, note=?, photo=?
 			where contact_id=?"""
-			data = [self.uuid]
+			data = [self.uuid, self.modified]
 			data.extend(self.toList())
 			data.append(self.id)
 			self.conn.execute(query, data)
@@ -299,11 +370,3 @@ class Address(Content):
 			if getattr(self, val):
 				return False
 		return True
-
-#if __name__ == "__main__":
-	#db = ContactDB("arkadas.db")
-
-	#print db.getList()
-	#con = db.getContact(db.getList()[0])
-	#print con.adr_list[0].toList()
-	#con.save()
