@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.2.0 on Sat Mar 31 22:24:38 2007 by paul@Omega-->
+<!--Generated with glade3 3.2.0 on Wed Apr  4 15:07:32 2007 by paul@Omega-->
 <glade-interface>
   <widget class="GtkWindow" id="mainWindow">
     <property name="title" translatable="yes">Address Book</property>
@@ -392,6 +392,7 @@
                         <property name="visible">True</property>
                         <child>
                           <widget class="GtkVBox" id="table">
+                            <property name="visible">True</property>
                             <property name="no_show_all">True</property>
                             <property name="border_width">10</property>
                             <property name="spacing">12</property>
@@ -407,7 +408,6 @@
                                         <property name="visible">True</property>
                                         <child>
                                           <widget class="GtkImage" id="photoImage">
-                                            <property name="visible">True</property>
                                             <property name="xpad">4</property>
                                             <property name="ypad">4</property>
                                             <property name="stock">gtk-missing-image</property>
@@ -1056,7 +1056,7 @@ Sohn</property>
                             <child>
                               <widget class="GtkCheckButton" id="showlineCheck">
                                 <property name="visible">True</property>
-                                <property name="tooltip" translatable="yes">If activated, shows a vertical line between the caption and the items of a field.</property>
+                                <property name="tooltip" translatable="yes" context="yes">If activated, shows a vertical line between the caption and the items of a field.</property>
                                 <property name="label" translatable="yes" context="yes">Show caption separator</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
@@ -1279,7 +1279,7 @@ Reverse Name</property>
                                   <widget class="GtkButton" id="button5">
                                     <property name="visible">True</property>
                                     <property name="is_focus">True</property>
-                                    <property name="label" translatable="yes" context="yes">gtk-go-up</property>
+                                    <property name="label">gtk-go-up</property>
                                     <property name="use_stock">True</property>
                                     <signal name="clicked" handler="moveupButton_clicked" object="orderList"/>
                                   </widget>
@@ -1290,7 +1290,7 @@ Reverse Name</property>
                                 <child>
                                   <widget class="GtkButton" id="button6">
                                     <property name="visible">True</property>
-                                    <property name="label" translatable="yes" context="yes">gtk-go-down</property>
+                                    <property name="label">gtk-go-down</property>
                                     <property name="use_stock">True</property>
                                     <signal name="clicked" handler="movedownButton_clicked" object="orderList"/>
                                   </widget>
@@ -1363,7 +1363,7 @@ Reverse Name</property>
                     <child>
                       <widget class="GtkButton" id="addfieldButton">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes" context="yes">gtk-add</property>
+                        <property name="label">gtk-add</property>
                         <property name="use_stock">True</property>
                         <signal name="clicked" handler="addfieldButton_clicked" object="templateList"/>
                       </widget>
@@ -1374,7 +1374,7 @@ Reverse Name</property>
                     <child>
                       <widget class="GtkButton" id="removefieldButton">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes" context="yes">gtk-remove</property>
+                        <property name="label">gtk-remove</property>
                         <property name="use_stock">True</property>
                         <signal name="clicked" handler="removefieldButton_clicked" object="templateList"/>
                       </widget>
@@ -1387,7 +1387,7 @@ Reverse Name</property>
                       <widget class="GtkButton" id="button3">
                         <property name="visible">True</property>
                         <property name="is_focus">True</property>
-                        <property name="label" translatable="yes" context="yes">gtk-go-up</property>
+                        <property name="label">gtk-go-up</property>
                         <property name="use_stock">True</property>
                         <signal name="clicked" handler="moveupButton_clicked" object="templateList"/>
                       </widget>
@@ -1399,7 +1399,7 @@ Reverse Name</property>
                     <child>
                       <widget class="GtkButton" id="button4">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes" context="yes">gtk-go-down</property>
+                        <property name="label">gtk-go-down</property>
                         <property name="use_stock">True</property>
                         <signal name="clicked" handler="movedownButton_clicked" object="templateList"/>
                       </widget>

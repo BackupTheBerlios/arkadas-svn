@@ -1,5 +1,5 @@
 Arkadas, a lightweight GTK+ Contact-Manager.
-Copyright 2007 Paul Johnson <thrillerator@googlemail.com>
+Copyright © 2006-2007 Paul Johnson <thrillerator@googlemail.com>
 
 REQUIREMENTS:
 	(Required) PyGTK 2.8.0 or newer

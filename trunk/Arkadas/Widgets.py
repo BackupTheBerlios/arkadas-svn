@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
 
-#	This file is part of Arkadas.
+# Copyright © 2006-2007 Paul Johnson <thrillerator@googlemail.com>
 #
-#	Arkadas is free software; you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation; either version 2 of the License, or
-#	(at your option) any later version.
+# This file is part of Arkadas.
 #
-#	Arkadas is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
+# Arkadas is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
-#	You should have received a copy of the GNU General Public License
-#	along with Arkadas; if not, write to the Free Software
-#	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Arkadas is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Arkadas; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
+# USA
 
 import datetime
 import gtk
@@ -137,22 +140,38 @@ class CustomLabel(gtk.HBox):
 		self.label.show()
 
 		if self.link:
+			clipboard = gtk.Clipboard()
+			
 			self.eventbox = gtk.EventBox()
 			self.eventbox.set_visible_window(False)
 			self.eventbox.set_above_child(True)
-			self.eventbox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
 			self.eventbox.add(self.label)
 			self.eventbox.show()
-			self.eventbox.connect("button-press-event", self.open_link)
+			self.eventbox.connect("button-press-event", self.link_pressed)
 			self.eventbox.connect("enter-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2)))
 			self.eventbox.connect("leave-notify-event", lambda w,e: self.get_toplevel().window.set_cursor(None))
 			self.labelbox.pack_start(self.eventbox, False)
+			
+			self.linkmenu = gtk.Menu()
+			
+			item = gtk.ImageMenuItem(gtk.STOCK_JUMP_TO)
+			item.get_child().set_text_with_mnemonic(_("_Open Link"))
+			item.show()
+			item.connect("activate", lambda w: self.open_link())
+			self.linkmenu.append(item)
+			
+			item = gtk.ImageMenuItem(gtk.STOCK_COPY)
+			item.get_child().set_text_with_mnemonic(_("Copy _Link Address"))
+			item.show()
+			item.connect("activate", lambda w: clipboard.set_text(self.get_text()))
+			self.linkmenu.append(item)
+			
 		else:
+			self.label.connect("button-release-event", self.label_released)
 			self.labelbox.add(self.label)
 
 		self.entry = gtk.Entry()
 		#self.entry.set_has_frame(False)
-		self.entry.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.add(self.entry)
 
 		self.labelbox.show()
@@ -161,18 +180,27 @@ class CustomLabel(gtk.HBox):
 
 		self.set_text(text)
 
-	def open_link(self, widget, event):
+	def label_released(self, widget, event):
+		if not widget.get_selection_bounds():
+			widget.select_region(0, -1)
+		
+	def link_pressed(self, widget, event):
 		if event.button == 1:
-			url = self.get_text()
-			if "@" in url:
-				url = "mailto:" + url
-			browser_load(url, self.get_toplevel())
+			self.open_link()
+		elif event.button == 3:
+			self.linkmenu.popup(None, None, None, event.button, event.time)
+
+	def open_link(self):
+		url = self.get_text()
+		if "@" in url:
+			url = "mailto:" + url
+		browser_load(url, self.get_toplevel())
 
 	def set_text(self, text):
 		if self.link:
-			self.label.set_markup("<span foreground=\"blue\"><u>%s</u></span>" % text)
+			self.label.set_markup("<span foreground=\"blue\" underline=\"single\">%s</span>" % text)
 		else:
-			self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
+			self.label.set_text(text)
 
 		self.entry.set_text(text)
 
@@ -238,7 +266,7 @@ class AddressField(gtk.HBox):
 			setattr(self.content, val, getattr(self, val).get_text().strip())
 
 		text = format_adr(self.format,**self.content.__dict__)
-		self.label.set_markup("<span foreground=\"black\">%s</span>" % text)
+		self.label.set_text(text)
 
 	def grab_focus(self):
 		self.street.grab_focus()
@@ -261,6 +289,7 @@ class BirthdayField(gtk.HBox):
 		self.label = gtk.Label()
 		self.label.set_alignment(0,0.5)
 		self.label.set_selectable(True)
+		self.label.connect("button-release-event", self.label_released)
 		self.add(self.label)
 
 		self.datebox = gtk.HBox()
@@ -268,19 +297,16 @@ class BirthdayField(gtk.HBox):
 
 		self.day = gtk.SpinButton(gtk.Adjustment(1, 1, 31, 1, 7), 1, 0)
 		self.day.set_numeric(True)
-		self.day.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.day, _('Day'))
 		self.datebox.pack_start(self.day, False)
 
 		self.month = gtk.SpinButton(gtk.Adjustment(1, 1, 12, 1, 3), 1, 0)
 		self.month.set_numeric(True)
-		self.month.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.month, _('Month'))
 		self.datebox.pack_start(self.month, False)
 
 		self.year = gtk.SpinButton(gtk.Adjustment(1950, 1900, 2100, 1, 10), 1, 0)
 		self.year.set_numeric(True)
-		self.year.modify_text(gtk.STATE_NORMAL, gtk.gdk.color_parse("black"))
 		self.tooltips.set_tip(self.year, _('Year'))
 		self.datebox.pack_start(self.year, False)
 
@@ -301,10 +327,14 @@ class BirthdayField(gtk.HBox):
 		date = datetime.date(year, month, day)
 
 		self.content = date.isoformat()
-		self.label.set_markup("<span foreground=\"black\">%s</span>" % date.strftime("%x"))
+		self.label.set_text(date.strftime("%x"))
 
 		self.label.set_property("visible", not editable)
 		self.datebox.set_property("visible", editable)
+	
+	def label_released(self, widget, event):
+		if not widget.get_selection_bounds():
+			widget.select_region(0, -1)
 
 class EventVBox(gtk.HBox):
 	def __init__(self, name, sizegroup=None, separator=True):
@@ -315,9 +345,13 @@ class EventVBox(gtk.HBox):
 
 		# caption
 		self.caption = gtk.Label()
-		self.caption.set_markup("<span foreground=\"dim grey\"><b>%s:</b></span>" % types[name])
+		self.caption.set_markup("<b>%s:</b>" % types[name])
+		#self.caption.set_text(types[name])
 		self.caption.set_alignment(1, 0)
 		self.pack_start(self.caption, False)
+		
+		#self.caption.ensure_style()
+		self.caption.modify_fg(gtk.STATE_NORMAL, self.caption.get_style().fg[gtk.STATE_INSENSITIVE])
 
 		sep = gtk.VSeparator()
 		self.pack_start(sep, False, padding=4)

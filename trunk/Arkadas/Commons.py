@@ -1,23 +1,32 @@
 # -*- coding: utf-8 -*-
 
-#	This file is part of Arkadas.
-#
-#	Arkadas is free software; you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation; either version 2 of the License, or
-#	(at your option) any later version.
-#
-#	Arkadas is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
-#
-#	You should have received a copy of the GNU General Public License
-#	along with Arkadas; if not, write to the Free Software
-#	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+appname = "Arkadas"
+description = _("A lightweight GTK+ Contact-Manager.")
+website = "http://arkadas.berlios.de"
+version = "1.8"
+authors = ["Paul Johnson <thrillerator@googlemail.com>",
+			"Erdem Cakir <1988er@gmail.com>",]
+translators = "de - Erdem Cakir <1988er@gmail.com>"
+license = """Copyright 2006-2007 Paul Johnson <thrillerator@googlemail.com>
 
-import os, sys, subprocess
-import gtk
+Arkadas is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+Arkadas is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Arkadas; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
+USA
+"""
+
+import os, sys
+import gtk, subprocess
 
 try:
 	import vobject
@@ -26,9 +35,6 @@ except:
 	HAVE_VOBJECT = False
 
 import ContactEngine
-
-import gettext
-gettext.install("arkadas", "/usr/share/locale", unicode=1)
 
 types = {
 	"home":_("Home"), "work":_("Work"),
@@ -59,11 +65,16 @@ address_formats = ["%street %extended\n%box\n%city %region %code\n%country",
 sort_formats = ["%f %g %a", "%g %a %f"]
 
 def import_vcard(filename, engine, photo_dir=""):
+	vcards = []
+	vcard = None
 	contacts = []
 	contact = None
-
-	vcards = vobject.readComponents(file(filename, "r"))
-
+	
+	try:
+		vcards = vobject.readComponents(file(filename, "r"))
+	except:
+		pass
+		
 	for vcard in vcards:
 		try:
 			contact = engine.addContact()
@@ -138,8 +149,10 @@ def import_vcard(filename, engine, photo_dir=""):
 			contacts.append(contact)
 
 		except:
-			if contact: engine.removeContact(contact.id)
-			raise
+			if contact:
+				engine.removeContact(contact.id)
+				if contact in contact:
+					contacts.remove(contact)
 
 	return contacts
 
@@ -308,14 +321,21 @@ def get_pixbuf_of_size_from_file(filename, size):
 	except:
 		return None
 
-def error(text, window=None):
-	msg(text, window, type=gtk.MESSAGE_WARNING)
-
 def msg(text, window=None, type=gtk.MESSAGE_INFO):
 	dialog = gtk.MessageDialog(window, gtk.DIALOG_MODAL, type, gtk.BUTTONS_CLOSE, text)
 	dialog.set_property("use-markup", True)
 	dialog.run()
 	dialog.destroy()
+	
+def error(text, window=None):
+	msg(text, window, type=gtk.MESSAGE_WARNING)
+	
+def question(text, window=None):
+	dialog = gtk.MessageDialog(window, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO, text)
+	dialog.set_property("use-markup", True)
+	ret = dialog.run()
+	dialog.destroy()
+	return (ret == gtk.RESPONSE_YES)
 
 def browser_load(docslink, window=None):
 	try:
