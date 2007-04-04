@@ -23,7 +23,6 @@ import os, sys, gc, threading, datetime, ConfigParser
 import gtk, gtk.glade, gobject, pango
 
 import ContactEngine
-from Preferences import *
 from Widgets import *
 from Commons import *
 
